@@ -251,14 +251,11 @@ void HydrogenTools::generateNewHydrogenPositions(
     // Fallback will be to a random vector
     Vector3 newPos = generateNewBondVector(atom, allVectors, hybridization);
     allVectors.push_back(newPos);
-    positions.push_back(atom.position3d() + (newPos * bondLength));
+    positions.push_back(atom.position3d() - (newPos * bondLength));
   }
 }
 
   // Generate bond geometries
-  // First, the default fallback (random vectors)
-  // Also applies when you have a linear geometry and just need one new vector
-  // (it doesn't matter where it goes).
   Vector3 HydrogenTools::generateNewBondVector(const Atom &atom, std::vector<Vector3> &allVectors, AtomHybridization hybridization)
   {
     Vector3 newPos;
@@ -344,7 +341,7 @@ void HydrogenTools::generateNewHydrogenPositions(
       }
 
       //      std::cout << " one bond " << newPos.normalized() << std::endl;
-      return -1.0*newPos.normalized();
+      return newPos.normalized();
     } // end one bond
     else if (currentValence == 2) {
       Vector3 bond1 = allVectors[0];
@@ -358,30 +355,73 @@ void HydrogenTools::generateNewHydrogenPositions(
       case SP2:
         newPos = v1; // point away from the two existing bonds
         break;
+      case SquarePlanar:
+      case TrigonalBipyramidal:
+      case Octahedral:
+        // bond1 and bond2 are probably opposite, so find a perpendicular
+        newPos = bond1.cross(bond2);
+        break;
       case SP3:
       default:
         Vector3 v2 = bond1.cross(bond2); // find the perpendicular
         v2.normalize();
-        newPos = bond1 - v2 * tan(DEG_TO_RAD*(M_TETRAHED));
+        //        newPos = bond1 - v2 * tan(DEG_TO_RAD*(M_TETRAHED));
         newPos = v2 + v1 * (sqrt(2.0) / 2.0);
       }
 
-      //      std::cout << " two bonds " << newPos.normalized() << std::endl;
-      return -1.0*newPos.normalized();
+      return newPos.normalized();
     } // end two bonds
     else if (currentValence == 3) {
       Vector3 bond1 = allVectors[0];
       Vector3 bond2 = allVectors[1];
       Vector3 bond3 = allVectors[2];
+      Vector3 v1;
 
       // need to handle different hybridizations here
 
-      // since the base of the tetrahedron should be symmetric
-      // the sum of the three bond vectors should cancel the angular parts
-      // and point in the new direction.. just need to normalize and rescale
-      newPos = -1.0*(bond1 + bond2 + bond3);
+      switch (hybridization) {
+      case TrigonalBipyramidal:
+        // take the sum of the three bond vectors
+        v1 = (bond1 + bond2 + bond3);
+        // now go 120 degrees from this
+        v1.normalize();
+        newPos = bond1 + v1 * tan(DEG_TO_RAD*(120.0));
+        break;
+      case SP3:
+      case SquarePlanar:
+      case Octahedral:
+      default:
+        // since the base of the tetrahedron should be symmetric
+        // the sum of the three bond vectors should cancel the angular parts
+        // and point in the new direction.. just need to normalize and rescale
+        newPos = (bond1 + bond2 + bond3);
+      }
 
       //      std::cout << " three bonds " << newPos.normalized() << std::endl;
+      return newPos.normalized();
+    } else if (currentValence == 4) {
+      Vector3 bond1, bond2, bond3;
+
+      switch (hybridization) {
+      case Octahedral:
+      default:
+        // pick any two bonds, add them
+        // pick the other two, add them
+        // take the cross product
+        bond1 = allVectors[0] + allVectors[2];
+        bond2 = allVectors[1] + allVectors[3];
+
+        bond3 = bond1.cross(bond2);
+      }
+      return newPos.normalized();
+    } else if (currentValence == 5) {
+
+      // Sum the remaining vectors and we should be opposite the sum
+
+      newPos = allVectors[0];
+      for (unsigned int i = 1; i < 5; ++i)
+        newPos += allVectors[i];
+
       return newPos.normalized();
     }
 
