@@ -213,12 +213,12 @@ QUndoCommand *Editor::keyPressEvent(QKeyEvent *e)
 void Editor::adjustHydrogens()
 {
   if (m_molecule) {
-    //Core::HydrogenTools::adjustHydrogens(*m_molecule);
+    Core::HydrogenTools::adjustHydrogens(m_molecule);
     // Assume bonds and atoms changed...
-    //m_molecule->emitChanged(QtGui::Molecule::Atoms
-    //                        | QtGui::Molecule::Bonds
-    //                        | QtGui::Molecule::Added
-    //                        | QtGui::Molecule::Removed);
+    m_molecule->emitChanged(QtGui::Molecule::Atoms
+                            | QtGui::Molecule::Bonds
+                            | QtGui::Molecule::Added
+                            | QtGui::Molecule::Removed);
   }
 }
 
@@ -496,6 +496,11 @@ void Editor::atomLeftDrag(QMouseEvent *e)
     // Add a new atom bonded to the clicked atom
     RWAtom clickedAtom = m_molecule->atom(m_clickedObject.index);
     newAtom = m_molecule->addAtom(m_toolWidget->atomicNumber());
+
+    newAtom.setFormalCharge(m_toolWidget->formalCharge());
+    unsigned char geometry = m_toolWidget->geometry();
+    if (geometry != 0)
+      newAtom.setHybridization(static_cast<Core::AtomHybridization>(geometry));
 
     // Handle the automatic bond order
     int bondOrder = m_toolWidget->bondOrder();

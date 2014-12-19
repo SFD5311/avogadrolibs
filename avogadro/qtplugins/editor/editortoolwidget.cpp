@@ -42,6 +42,8 @@ EditorToolWidget::EditorToolWidget(QWidget *parent_) :
 
   buildElements();
   buildBondOrders();
+  buildFormalCharges();
+  buildGeometries();
 
   connect(m_ui->element, SIGNAL(currentIndexChanged(int)),
           this, SLOT(elementChanged(int)));
@@ -89,6 +91,28 @@ void EditorToolWidget::setBondOrder(unsigned char order)
 unsigned char EditorToolWidget::bondOrder() const
 {
   return static_cast<unsigned char>(m_ui->bondOrder->currentIndex());
+}
+
+void EditorToolWidget::setFormalCharge(short charge)
+{
+  // validate and set
+}
+
+short EditorToolWidget::formalCharge() const
+{
+  return static_cast<short>(
+        m_ui->formalCharge->itemData(m_ui->formalCharge->currentIndex()).toInt());
+}
+
+void EditorToolWidget::setGeometry(unsigned char shape)
+{
+  // validate and set
+}
+
+unsigned char EditorToolWidget::geometry() const
+{
+  return static_cast<unsigned char>(
+        m_ui->geometry->itemData(m_ui->geometry->currentIndex()).toUInt());
 }
 
 void EditorToolWidget::elementChanged(int index)
@@ -210,6 +234,33 @@ void EditorToolWidget::buildBondOrders()
   m_ui->bondOrder->addItem(tr("Single"), 1);
   m_ui->bondOrder->addItem(tr("Double"), 2);
   m_ui->bondOrder->addItem(tr("Triple"), 3);
+}
+
+void EditorToolWidget::buildFormalCharges()
+{
+  m_ui->formalCharge->clear();
+  m_ui->formalCharge->addItem("+3", 3);
+  m_ui->formalCharge->addItem("+2", 2);
+  m_ui->formalCharge->addItem("+1", 1);
+  m_ui->formalCharge->addItem("0", 0);
+  m_ui->formalCharge->addItem("-1", -1);
+  m_ui->formalCharge->addItem("-2", -2);
+  m_ui->formalCharge->addItem("-3", -3);
+
+  // set the default to 0
+  m_ui->formalCharge->setCurrentIndex(m_ui->formalCharge->findData(0));
+}
+
+  void EditorToolWidget::buildGeometries()
+{
+  m_ui->geometry->clear();
+  m_ui->geometry->addItem(tr("Automatic"), 0);
+  m_ui->geometry->addItem(tr("Linear"), 1);
+  m_ui->geometry->addItem(tr("Trigonal Planar"), 2);
+  m_ui->geometry->addItem(tr("Tetrahedral"), 3);
+  m_ui->geometry->addItem(tr("Square Planar"), 4);
+  m_ui->geometry->addItem(tr("Trigonal Bipyramidal"), 5);
+  m_ui->geometry->addItem(tr("Octahedral"), 6);
 }
 
 void EditorToolWidget::saveElements()

@@ -44,6 +44,12 @@ public:
   void setBondOrder(unsigned char order);
   unsigned char bondOrder() const;
 
+  void setFormalCharge(short charge);
+  short formalCharge() const;
+
+  void setGeometry(unsigned char shape);
+  unsigned char geometry() const;
+
 signals:
   void adjustHydrogens();
 
@@ -57,6 +63,9 @@ private slots:
 private:
   void buildElements();
   void buildBondOrders();
+  void buildFormalCharges();
+  void buildGeometries();
+
   void saveElements();
 
   Ui::EditorToolWidget *m_ui;
