@@ -213,7 +213,9 @@ QUndoCommand *Editor::keyPressEvent(QKeyEvent *e)
 void Editor::adjustHydrogens()
 {
   if (m_molecule) {
-    Core::HydrogenTools::adjustHydrogens(m_molecule);
+    //    QtGui::Molecule coreMolecule(m_molecule);
+    //    Core::HydrogenTools::adjustHydrogens(coreMolecule);
+    //    m_molecule = QtGui::RWMolecule(coreMolecule,0);
     // Assume bonds and atoms changed...
     m_molecule->emitChanged(QtGui::Molecule::Atoms
                             | QtGui::Molecule::Bonds
