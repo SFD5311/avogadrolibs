@@ -69,7 +69,29 @@ inline unsigned int lookupValency(const Atom &atom,
                                   unsigned int numExistingBonds)
 {
   signed char charge = atom.formalCharge();
-  return atomValence(atom.atomicNumber(), charge, numExistingBonds);
+  unsigned int minValence, valence = atomValence(atom.atomicNumber(), charge, numExistingBonds);
+
+  std::cerr << " hybridization: " << atom.hybridization() << std::endl;
+  std::cerr << " formal charge: " << atom.formalCharge() << std::endl;
+
+  switch (atom.hybridization()) {
+  case Avogadro::Core::SquarePlanar:
+    valence = 4;
+    break;
+  case Avogadro::Core::TrigonalBipyramidal:
+    valence = 5;
+    break;
+  case Avogadro::Core::Octahedral:
+    valence = 6;
+    break;
+  case Avogadro::Core::SP:
+  case Avogadro::Core::SP2:
+  case Avogadro::Core::SP3:
+  default:
+    break; // don't change the defaut MDL valence
+  }
+
+  return valence;
 }
 
 inline float hydrogenBondDistance(unsigned char otherAtomicNumber)
@@ -118,6 +140,9 @@ void HydrogenTools::adjustHydrogens(Molecule &molecule, Adjustment adjustment)
   for (size_t atomIndex = 0; atomIndex < numAtoms; ++atomIndex) {
     const Atom atom(molecule.atom(atomIndex));
     int hDiff = valencyAdjustment(atom);
+
+    std::cout << " valency adjust " << hDiff << std::endl;
+
     // Add hydrogens:
     if (doAdd && hDiff > 0) {
       newHPos.clear();
@@ -247,11 +272,11 @@ void HydrogenTools::generateNewHydrogenPositions(
   }
 
   for (int impHIndex = 0; impHIndex < numberOfHydrogens; ++impHIndex) {
-    // First try to derive the bond vector based on the hybridization
+    // Try to derive the bond vector based on the hybridization
     // Fallback will be to a random vector
     Vector3 newPos = generateNewBondVector(atom, allVectors, hybridization);
     allVectors.push_back(newPos);
-    positions.push_back(atom.position3d() - (newPos * bondLength));
+    positions.push_back(atom.position3d() + (newPos * bondLength));
   }
 }
 
@@ -341,7 +366,7 @@ void HydrogenTools::generateNewHydrogenPositions(
       }
 
       //      std::cout << " one bond " << newPos.normalized() << std::endl;
-      return newPos.normalized();
+      return -newPos.normalized();
     } // end one bond
     else if (currentValence == 2) {
       Vector3 bond1 = allVectors[0];
@@ -369,7 +394,7 @@ void HydrogenTools::generateNewHydrogenPositions(
         newPos = v2 + v1 * (sqrt(2.0) / 2.0);
       }
 
-      return newPos.normalized();
+      return -newPos.normalized();
     } // end two bonds
     else if (currentValence == 3) {
       Vector3 bond1 = allVectors[0];
@@ -398,7 +423,7 @@ void HydrogenTools::generateNewHydrogenPositions(
       }
 
       //      std::cout << " three bonds " << newPos.normalized() << std::endl;
-      return newPos.normalized();
+      return -newPos.normalized();
     } else if (currentValence == 4) {
       Vector3 bond1, bond2, bond3;
 
@@ -413,7 +438,7 @@ void HydrogenTools::generateNewHydrogenPositions(
 
         bond3 = bond1.cross(bond2);
       }
-      return newPos.normalized();
+      return -newPos.normalized();
     } else if (currentValence == 5) {
 
       // Sum the remaining vectors and we should be opposite the sum
@@ -422,7 +447,7 @@ void HydrogenTools::generateNewHydrogenPositions(
       for (unsigned int i = 1; i < 5; ++i)
         newPos += allVectors[i];
 
-      return newPos.normalized();
+      return -newPos.normalized();
     }
 
     // Fallback:
@@ -441,7 +466,7 @@ void HydrogenTools::generateNewHydrogenPositions(
         success = newPos.dot(*it) < cosRadTol;
       }
     }
-    return newPos;
+    return -newPos;
   }
 
 
