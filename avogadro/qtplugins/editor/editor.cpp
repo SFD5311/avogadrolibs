@@ -285,6 +285,14 @@ void Editor::emptyLeftClick(QMouseEvent *e)
   RWAtom newAtom = m_molecule->addAtom(m_toolWidget->atomicNumber());
   newAtom.setPosition3d(atomPos.cast<double>());
 
+  newAtom.setFormalCharge(m_toolWidget->formalCharge());
+  unsigned char geometry = m_toolWidget->geometry();
+  if (geometry != 0)
+    {
+      newAtom.setHybridization(static_cast<Core::AtomHybridization>(geometry));
+      qDebug() << " set hybridization " << geometry;
+    }
+
   // Update the clicked object
   m_clickedObject.type = Rendering::AtomType;
   m_clickedObject.molecule = m_molecule;
@@ -305,6 +313,12 @@ void Editor::atomLeftClick(QMouseEvent *e)
     if (atom.atomicNumber() != atomicNumber) {
       m_clickedAtomicNumber = atom.atomicNumber();
       atom.setAtomicNumber(atomicNumber);
+
+      atom.setFormalCharge(m_toolWidget->formalCharge());
+      unsigned char geometry = m_toolWidget->geometry();
+      if (geometry != 0)
+        atom.setHybridization(static_cast<Core::AtomHybridization>(geometry));
+
       m_molecule->emitChanged(Molecule::Atoms | Molecule::Modified);
     }
     e->accept();
@@ -333,24 +347,24 @@ void Editor::bondRightClick(QMouseEvent *e)
   m_molecule->emitChanged(Molecule::Bonds | Molecule::Removed);
 }
 
-  int expectedBondOrder(RWAtom atom1, RWAtom atom2)
-  {
-    Vector3 bondVector = atom1.position3d() - atom2.position3d();
-    double bondDistance = bondVector.norm();
-    double radiiSum;
-    radiiSum = Elements::radiusCovalent(atom1.atomicNumber()) + Elements::radiusCovalent(atom2.atomicNumber());
-    double ratio = bondDistance / radiiSum;
+int expectedBondOrder(RWAtom atom1, RWAtom atom2)
+{
+  Vector3 bondVector = atom1.position3d() - atom2.position3d();
+  double bondDistance = bondVector.norm();
+  double radiiSum;
+  radiiSum = Elements::radiusCovalent(atom1.atomicNumber()) + Elements::radiusCovalent(atom2.atomicNumber());
+  double ratio = bondDistance / radiiSum;
 
-    int bondOrder;
-    if (ratio > 1.0)
-      bondOrder = 1;
-    else if (ratio > 0.91 && ratio < 1.0)
-      bondOrder = 2;
-    else
-      bondOrder = 3;
+  int bondOrder;
+  if (ratio > 1.0)
+    bondOrder = 1;
+  else if (ratio > 0.91 && ratio < 1.0)
+    bondOrder = 2;
+  else
+    bondOrder = 3;
 
-    return bondOrder;
-  }
+  return bondOrder;
+}
 
 void Editor::atomLeftDrag(QMouseEvent *e)
 {
@@ -502,7 +516,10 @@ void Editor::atomLeftDrag(QMouseEvent *e)
     newAtom.setFormalCharge(m_toolWidget->formalCharge());
     unsigned char geometry = m_toolWidget->geometry();
     if (geometry != 0)
-      newAtom.setHybridization(static_cast<Core::AtomHybridization>(geometry));
+      {
+        newAtom.setHybridization(static_cast<Core::AtomHybridization>(geometry));
+        qDebug() << " set hybridization " << geometry;
+      }
 
     // Handle the automatic bond order
     int bondOrder = m_toolWidget->bondOrder();
