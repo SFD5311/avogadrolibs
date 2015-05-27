@@ -208,11 +208,37 @@ public:
     return m_molecule.m_positions2d;
   }
 
-  Core::AtomHybridization hybridization(Index) const { return Core::HybridizationUnknown; }
-  bool setHybridization(Index, Core::AtomHybridization) { return false; }
+  const Core::Array<Core::AtomHybridization>& hybridizations() const
+  {
+    return m_molecule.m_hybridizations;
+  }
 
-  signed char formalCharge(Index) const { return 0; }
-  bool setFormalCharge(Index, signed char) { return false; }
+  Core::AtomHybridization hybridization(Index atomId) const
+{
+  return m_molecule.hybridization(atomId);
+}
+
+  bool setHybridization(Index atomId, Core::AtomHybridization hyb)
+ {
+  return m_molecule.setHybridization(atomId, hyb);
+ }
+
+
+  const Core::Array<signed char>& formalCharges() const
+  {
+    return m_molecule.m_formalCharges;
+  }
+
+  signed char formalCharge(Index atomId) const
+{
+  return m_molecule.formalCharge(atomId);
+}
+
+  bool setFormalCharge(Index atomId, signed char charge)
+{
+  return m_molecule.setFormalCharge(atomId, charge);
+}
+
 
   /**
    * Create a new bond in the molecule.
