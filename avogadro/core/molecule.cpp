@@ -230,6 +230,10 @@ Molecule::AtomType Molecule::addAtom(unsigned char number)
   // Add the atomic number.
   m_atomicNumbers.push_back(number);
 
+  // reserve space also for hybridizations and formal charges
+  m_hybridizations.push_back(HybridizationUnknown);
+  m_formalCharges.push_back(0);
+
   return AtomType(this, static_cast<Index>(m_atomicNumbers.size() - 1));
 }
 
