@@ -1,0 +1,24 @@
+language: cpp
+
+matrix:
+  include:
+    - compiler: gcc
+      env: RUN_CTEST='true' FLAGS="-DPYTHON_BINDINGS=ON -DRUN_SWIG=ON"
+    - compiler: clang
+      env: RUN_CTEST='true' FLAGS="-DPYTHON_BINDINGS=ON -DRUN_SWIG=ON"
+
+before_install:
+ - sudo add-apt-repository --yes ppa:ubuntu-sdk-team/ppa
+ - sudo apt-get update -qq
+
+install:
+ - sudo apt-get install -qq qt5-qmake qtbase5-dev libeigen3-dev
+
+before_script:
+ - mkdir build
+ - cd build
+ - cmake ${FLAGS} ..
+
+script:
+ - make -j2
+ - if [ ${RUN_CTEST} = 'true' ]; then ctest -j 2; fi
