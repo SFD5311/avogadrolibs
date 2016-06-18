@@ -68,9 +68,9 @@ using Rendering::LineStripGeometry;
 using Rendering::MeshGeometry;
 
 namespace {
-const std::string degreeString("\xb0");
+const std::string degreeString("°");
 /// @todo Add wide character support to text renderer.
-const std::string angstromString("A");
+const std::string angstromString("Å");
 
 // Lookup for coloring bond angles:
 const Vector3ub& getColor(size_t i) {
@@ -400,6 +400,10 @@ QUndoCommand * BondCentricTool::mousePressEvent(QMouseEvent *e)
   if (!atomIsInBond && !atomIsNearBond)
     return NULL;
 
+  if (m_molecule) {
+    m_molecule->setInteractive(true);
+  }
+
   // If the hit is a left click on an atom in the selected bond, prepare to
   // rotate the clicked bond around the other atom in the bond.
   if (atomIsInBond && e->button() == Qt::LeftButton)
@@ -460,6 +464,10 @@ QUndoCommand * BondCentricTool::mouseReleaseEvent(QMouseEvent *)
   if (m_moveState != IgnoreMove) {
     reset(KeepBond);
     emit drawablesChanged();
+
+    if (m_molecule) {
+      m_molecule->setInteractive(false); // allow an undo now
+    }
   }
 
   return NULL;

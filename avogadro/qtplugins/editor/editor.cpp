@@ -109,6 +109,10 @@ QUndoCommand *Editor::mousePressEvent(QMouseEvent *e)
   updatePressedButtons(e, false);
   m_clickPosition = e->pos();
 
+  if (m_molecule) {
+    m_molecule->setInteractive(true);
+  }
+
   if (m_pressedButtons & Qt::LeftButton) {
     m_clickedObject = m_renderer->hit(e->pos().x(), e->pos().y());
 
@@ -148,6 +152,10 @@ QUndoCommand *Editor::mouseReleaseEvent(QMouseEvent *e)
     return NULL;
 
   updatePressedButtons(e, true);
+
+  if (m_molecule) {
+    m_molecule->setInteractive(false);
+  }
 
   if (m_clickedObject.type == Rendering::InvalidType)
     return NULL;
@@ -226,7 +234,7 @@ void Editor::draw(Rendering::GroupNode &node)
   QString distanceLabel = tr("Distance:");
   int labelWidth = -1*distanceLabel.size();
 
-  QString overlayText = tr("Distance: %L1")
+  QString overlayText = tr("Distance: %L1 Å")
     .arg(m_bondDistance, 10, 'f', 3);
 
   TextProperties overlayTProp;
