@@ -1,10 +1,7 @@
 find_package(Eigen3 REQUIRED)
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 
-find_package(Qt5Widgets REQUIRED)
-find_package(Qt5OpenGL REQUIRED)
-find_package(Qt5Network REQUIRED)
-find_package(Qt5Concurrent REQUIRED)
+find_package(Qt5 COMPONENTS Widgets OpenGL Network Concurrent REQUIRED)
 include_directories(SYSTEM ${Qt5Widgets_INCLUDE_DIRS})
 add_definitions(${Qt5Widgets_DEFINITIONS})
 
@@ -112,6 +109,7 @@ add_subdirectory(openbabel)
 add_subdirectory(quantumoutput)
 add_subdirectory(playertool)
 add_subdirectory(povray)
+add_subdirectory(spacegroup)
 add_subdirectory(spectra)
 
 if(USE_MOLEQUEUE)

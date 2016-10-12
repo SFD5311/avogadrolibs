@@ -28,6 +28,7 @@
 #include <avogadro/core/atom.h>
 #include <avogadro/core/avogadrocore.h>
 #include <avogadro/core/bond.h>
+#include <avogadro/core/crystaltools.h>
 #include <avogadro/core/unitcell.h>
 #include <avogadro/core/vector.h>
 
@@ -92,6 +93,14 @@ public:
   AtomType addAtom(unsigned char atomicNumber);
 
   /**
+   * Add a new atom to the molecule and set its position.
+   * @param atomicNumber The atomic number of the new atom.
+   * @param position3d The position of the atom.
+   * @return The new Atom object.
+   */
+  AtomType addAtom(unsigned char atomicNumber, const Vector3 &position3d);
+
+  /**
    * Obtain an atom object.
    * @param atomId The index of the atom to return.
    * @return The requested atom object. Will be invalid if @a atomId >= @a
@@ -143,6 +152,21 @@ public:
   void clearAtoms();
 
   /**
+   * Adjust hydrogens for an atom.
+   * @param atomId The index of the atom.
+   * @note Checks to make sure the atom is valid before adjusting the hydrogens.
+   */
+  void adjustHydrogens(Index atomId);
+
+  /**
+   * Adjust hydrogens for multiple atoms.
+   * @param atomIds The indices for the atoms.
+   * @note Checks to make sure the atoms are valid before adjusting the
+   * hydrogens.
+   */
+  void adjustHydrogens(const Core::Array<Index>& atomIds);
+
+  /**
    * @return An array containing atomic numbers for all atoms in the molecule,
    * indexed by atom index.
    */
@@ -189,17 +213,21 @@ public:
   /**
    * Replace the current array of 3D atomic coordinates.
    * @param pos The new coordinate array. Must be of length atomCount().
+   * @param undoText The undo text to be displayed for undo commands.
    * @return True on success, false otherwise.
    */
-  bool setAtomPositions3d(const Core::Array<Vector3> &pos);
+  bool setAtomPositions3d(const Core::Array<Vector3> &pos,
+                          const QString &undoText = "Change Atom Positions");
 
   /**
    * Set the 3D position of a single atom.
    * @param atomId The index of the atom to modify.
    * @param pos The new position of the atom.
+   * @param undoText The undo text to be displayed for undo commands.
    * @return True on success, false otherwise.
    */
-  bool setAtomPosition3d(Index atomId, const Vector3& pos);
+  bool setAtomPosition3d(Index atomId, const Vector3& pos,
+                         const QString &undoText = "Change Atom Position");
 
   bool setAtomPosition2d(Index, const Vector2&) { return false; }
   Vector2 atomPosition2d(Index) { return Vector2(0, 0); }
@@ -398,6 +426,110 @@ public:
    * index is less than the second.
    */
   bool setBondPair(Index bondId, const std::pair<Index, Index> &pair);
+
+  /**
+   * Add a default unit cell to the molecule. Does nothing if there already
+   * is a unit cell. Changes are emitted.
+   */
+  void addUnitCell();
+
+  /**
+   * Remove the unit cell from the molecule. Does nothing if there is
+   * no unit cell. Changes are emitted.
+   */
+  void removeUnitCell();
+
+  /**
+   * Generic edit that changes the current molecule to be @a newMolecule.
+   * Also sets the text for the undo command to be @a undoText. Changes are
+   * emitted.
+   * @param newMolecule The new molecule to be set.
+   * @param changes The changes to be emitted.
+   * @param undoText The text description for the undo command.
+   */
+  void modifyMolecule(const Molecule &newMolecule,
+                      Molecule::MoleculeChanges changes,
+                      const QString &undoText = "Modify Molecule");
+
+  /**
+   * Edit the unit cell by replacing the current cell matrix with a new cell
+   * matrix. Changes are emitted.
+   * @param cellMatrix The new cell matrix to be set.
+   * @param opts If TransformAtoms is specified, the atoms in @a molecule are
+   * adjusted so that their fractional (lattice) coordinates are preserved. This
+   * option is ignored if the input molecule has no unit cell.
+   */
+  void editUnitCell(Matrix3 cellMatrix, Core::CrystalTools::Options opts);
+
+  /**
+   * Wrap atoms to the unit cell. Changes are emitted.
+   */
+  void wrapAtomsToCell();
+
+  /**
+   * Rotate cell to standard orientation. Changes are emitted.
+   */
+  void rotateCellToStandardOrientation();
+
+  /**
+   * Scale a cell's volume. Changes are emitted.
+   * @param newVolume The new volume to be set.
+   * @param options If CrystalTools::TransformAtoms is set, then
+   *                the atoms will be transformed during the scaling.
+   */
+  void setCellVolume(double newVolume, Core::CrystalTools::Options options);
+
+  /**
+   * Build a supercell. Changes are emitted.
+   * @param a The final number of units along the A vector (at least 1).
+   * @param b The final number of units along the B vector (at least 1).
+   * @param c The final number of units along the C vector (at least 1).
+   */
+  void buildSupercell(unsigned int a, unsigned int b, unsigned int c);
+
+  /**
+   * Perform a Niggli reduction on the cell. Changes are emitted.
+   */
+  void niggliReduceCell();
+
+  /**
+   * Use spglib to reduce the cell to its primitive form. Changes are emitted.
+   * @param cartTol Cartesian tolerance for primitive reduction.
+   * @return True if the algorithm succeeded, and false if it failed.
+   */
+  bool reduceCellToPrimitive(double cartTol = 1e-5);
+
+  /**
+   * Use spglib to convert the cell to its conventional form. Changes are
+   * emitted.
+   * @param cartTol Cartesian tolerance for conventionalization.
+   * @return True if the algorithm succeeded, and false if it failed.
+   */
+  bool conventionalizeCell(double cartTol = 1e-5);
+
+  /**
+   * Use spglib to symmetrize the cell. Changes are emitted.
+   * @param cartTol Cartesian tolerance for symmetrization.
+   * @return True if the algorithm succeeded, and false if it failed.
+   */
+  bool symmetrizeCell(double cartTol = 1e-5);
+
+  /**
+   * Fill unit cell using transforms for the space group. Changes are emitted.
+   * @param hallNumber The hall number to be used for transforming the cell.
+   * @param cartTol Cartesian tolerance for comparing atom positions.
+   * @return True if the algorithm succeeded, and false if it failed.
+   */
+  bool fillUnitCell(unsigned short hallNumber, double cartTol = 1e-5);
+
+  /**
+   * Use transforms to reduce a cell to its asymmetric unit. Changes are
+   * emitted.
+   * @param hallNumber The hall number to be used for obtaining the transforms.
+   * @param cartTol Cartesian tolerance for comparing atom positions.
+   * @return True if the algorithm succeeded, and false if it failed.
+   */
+  bool reduceCellToAsymmetricUnit(unsigned short hallNumber, double cartTol = 1e-5);
 
   /**
    * @brief Begin or end an interactive edit.

@@ -21,11 +21,17 @@
 #include <algorithm>
 #include <cassert>
 
+#include <avogadro/core/avospglib.h>
+#include <avogadro/qtgui/hydrogentools.h>
+#include <avogadro/core/spacegroups.h>
+
 namespace Avogadro {
 namespace QtGui {
 
 using Core::Array;
 using Core::AtomHybridization;
+using Core::CrystalTools;
+using Core::UnitCell;
 
 // Base class for all undo commands used by this class.
 // Used to expose molecule internals without needing to add explicit friendships
@@ -126,6 +132,17 @@ RWMolecule::AtomType RWMolecule::addAtom(unsigned char num)
   comm->setText(tr("Add Atom"));
   m_undoStack.push(comm);
   return AtomType(this, atomId);
+}
+
+RWMolecule::AtomType RWMolecule::addAtom(unsigned char num,
+                                         const Vector3 &position3d)
+{
+  // We will combine the actions in this command.
+  m_undoStack.beginMacro(tr("Add Atom"));
+  AtomType atom = addAtom(num);
+  setAtomPosition3d(atomCount() - 1, position3d);
+  m_undoStack.endMacro();
+  return atom;
 }
 
 Index RWMolecule::atomCount(unsigned char num) const
@@ -245,7 +262,7 @@ bool RWMolecule::removeAtom(Index atomId)
 
   RemoveAtomCommand *comm = new RemoveAtomCommand(
         *this, atomId, uniqueId, atomicNumber(atomId), atomPosition3d(atomId));
-  comm->setText("Remove Atom");
+  comm->setText(tr("Remove Atom"));
 
   m_undoStack.push(comm);
 
@@ -255,11 +272,30 @@ bool RWMolecule::removeAtom(Index atomId)
 
 void RWMolecule::clearAtoms()
 {
-  m_undoStack.beginMacro("Clear Atoms");
+  m_undoStack.beginMacro(tr("Clear Atoms"));
 
   while (atomCount() != 0)
     removeAtom(0);
 
+  m_undoStack.endMacro();
+}
+
+void RWMolecule::adjustHydrogens(Index atomId)
+{
+  RWAtom atom = this->atom(atomId);
+  if (atom.isValid()) {
+    m_undoStack.beginMacro(tr("Adjust Hydrogens"));
+    QtGui::HydrogenTools::adjustHydrogens(atom);
+    m_undoStack.endMacro();
+  }
+}
+
+void RWMolecule::adjustHydrogens(const Core::Array<Index>& atomIds)
+{
+  m_undoStack.beginMacro(tr("Adjust Hydrogens"));
+  for (Index i = 0; i < atomIds.size(); ++i) {
+    adjustHydrogens(atomIds[i]);
+  }
   m_undoStack.endMacro();
 }
 
@@ -381,14 +417,15 @@ public:
 };
 } // end anon namespace
 
-bool RWMolecule::setAtomPositions3d(const Core::Array<Vector3> &pos)
+bool RWMolecule::setAtomPositions3d(const Core::Array<Vector3> &pos,
+                                    const QString &undoText)
 {
   if (pos.size() != m_molecule.m_atomicNumbers.size())
     return false;
 
   SetPositions3dCommand *comm = new SetPositions3dCommand(
         *this, m_molecule.m_positions3d, pos);
-  comm->setText(tr("Change Atom Positions"));
+  comm->setText(undoText);
   comm->setCanMerge(m_interactive);
   m_undoStack.push(comm);
   return true;
@@ -464,7 +501,8 @@ public:
 };
 } // end anon namespace
 
-bool RWMolecule::setAtomPosition3d(Index atomId, const Vector3 &pos)
+bool RWMolecule::setAtomPosition3d(Index atomId, const Vector3 &pos,
+                                   const QString &undoText)
 {
   if (atomId >= atomCount())
     return false;
@@ -474,7 +512,7 @@ bool RWMolecule::setAtomPosition3d(Index atomId, const Vector3 &pos)
 
   SetPosition3dCommand *comm = new SetPosition3dCommand(
         *this, atomId, m_molecule.m_positions3d[atomId], pos);
-  comm->setText(tr("Change Atom Position"));
+  comm->setText(undoText);
   comm->setCanMerge(m_interactive);
   m_undoStack.push(comm);
   return true;
@@ -710,7 +748,7 @@ bool RWMolecule::removeBond(Index bondId)
 
 void RWMolecule::clearBonds()
 {
-  m_undoStack.beginMacro("Clear Bonds");
+  m_undoStack.beginMacro(tr("Clear Bonds"));
 
   while (bondCount() != 0)
     removeBond(0);
@@ -904,6 +942,363 @@ bool RWMolecule::setBondPair(Index bondId, const std::pair<Index, Index> &pair)
   }
   comm->setText(tr("Update Bond"));
   m_undoStack.push(comm);
+  return true;
+}
+
+namespace {
+class AddUnitCellCommand : public RWMolecule::UndoCommand
+{
+  UnitCell m_newUnitCell;
+public:
+  AddUnitCellCommand(RWMolecule &m, const UnitCell &newUnitCell)
+    : UndoCommand(m), m_newUnitCell(newUnitCell)
+  {
+  }
+
+  void redo() AVO_OVERRIDE
+  {
+    m_mol.molecule().setUnitCell(new UnitCell(m_newUnitCell));
+  }
+
+  void undo() AVO_OVERRIDE
+  {
+    m_mol.molecule().setUnitCell(NULL);
+  }
+};
+} // end anon namespace
+
+void RWMolecule::addUnitCell()
+{
+  // If there is already a unit cell, there is nothing to do
+  if (m_molecule.unitCell())
+    return;
+
+  UnitCell *cell = new UnitCell;
+  cell->setCellParameters(static_cast<Real>(3.0),
+                          static_cast<Real>(3.0),
+                          static_cast<Real>(3.0),
+                          static_cast<Real>(90.0) * DEG_TO_RAD,
+                          static_cast<Real>(90.0) * DEG_TO_RAD,
+                          static_cast<Real>(90.0) * DEG_TO_RAD);
+  m_molecule.setUnitCell(cell);
+
+  AddUnitCellCommand *comm = new AddUnitCellCommand(*this,
+                                                    *m_molecule.unitCell());
+  comm->setText(tr("Add Unit Cell"));
+  m_undoStack.push(comm);
+  emitChanged(Molecule::UnitCell | Molecule::Added);
+}
+
+namespace {
+class RemoveUnitCellCommand : public RWMolecule::UndoCommand
+{
+  UnitCell m_oldUnitCell;
+public:
+  RemoveUnitCellCommand(RWMolecule &m, const UnitCell &oldUnitCell)
+    : UndoCommand(m), m_oldUnitCell(oldUnitCell)
+  {
+  }
+
+  void redo() AVO_OVERRIDE
+  {
+    m_mol.molecule().setUnitCell(NULL);
+  }
+
+  void undo() AVO_OVERRIDE
+  {
+    m_mol.molecule().setUnitCell(new UnitCell(m_oldUnitCell));
+  }
+};
+} // end anon namespace
+
+void RWMolecule::removeUnitCell()
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return;
+
+  RemoveUnitCellCommand *comm = new RemoveUnitCellCommand(
+                                                       *this,
+                                                       *m_molecule.unitCell());
+  comm->setText(tr("Remove Unit Cell"));
+  m_undoStack.push(comm);
+
+  m_molecule.setUnitCell(NULL);
+  emitChanged(Molecule::UnitCell | Molecule::Removed);
+}
+
+namespace {
+class ModifyMoleculeCommand : public RWMolecule::UndoCommand
+{
+  Molecule m_oldMolecule;
+  Molecule m_newMolecule;
+public:
+  ModifyMoleculeCommand(RWMolecule &m,
+                        const Molecule &oldMolecule,
+                        const Molecule &newMolecule)
+    : UndoCommand(m), m_oldMolecule(oldMolecule), m_newMolecule(newMolecule)
+  {
+  }
+
+  void redo() AVO_OVERRIDE
+  {
+    m_mol.molecule() = m_newMolecule;
+  }
+
+  void undo() AVO_OVERRIDE
+  {
+    m_mol.molecule() = m_oldMolecule;
+  }
+};
+} // end anon namespace
+
+void RWMolecule::modifyMolecule(const Molecule &newMolecule,
+                                Molecule::MoleculeChanges changes,
+                                const QString &undoText)
+{
+  ModifyMoleculeCommand *comm = new ModifyMoleculeCommand(*this,
+                                                          m_molecule,
+                                                          newMolecule);
+
+  comm->setText(undoText);
+  m_undoStack.push(comm);
+
+  m_molecule = newMolecule;
+  emitChanged(changes);
+}
+
+void RWMolecule::editUnitCell(Matrix3 cellMatrix,
+                              CrystalTools::Options options)
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return;
+
+  // Make a copy of the molecule to edit so we can store the old one
+  // If the user has "TransformAtoms" set in the options, then
+  // the atom positions will move as well.
+  Molecule newMolecule = m_molecule;
+  CrystalTools::setCellMatrix(newMolecule, cellMatrix, options);
+
+  // We will just modify the whole molecule since there may be many changes
+  Molecule::MoleculeChanges changes = Molecule::UnitCell | Molecule::Modified;
+  // If TransformAtoms is set in the options, then the atoms may be modified
+  // as well.
+  if (options & CrystalTools::TransformAtoms)
+    changes |= Molecule::Atoms | Molecule::Modified;
+  QString undoText = tr("Edit Unit Cell");
+
+  modifyMolecule(newMolecule, changes, undoText);
+}
+
+void RWMolecule::wrapAtomsToCell()
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return;
+
+  Core::Array<Vector3> oldPos = m_molecule.atomPositions3d();
+  CrystalTools::wrapAtomsToUnitCell(m_molecule);
+  Core::Array<Vector3> newPos = m_molecule.atomPositions3d();
+
+  SetPositions3dCommand *comm = new SetPositions3dCommand(*this, oldPos,
+                                                          newPos);
+  comm->setText(tr("Wrap Atoms to Cell"));
+  m_undoStack.push(comm);
+
+  Molecule::MoleculeChanges changes = Molecule::Atoms | Molecule::Modified;
+  emitChanged(changes);
+}
+
+void RWMolecule::setCellVolume(double newVolume,
+                               CrystalTools::Options options)
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return;
+
+  // Make a copy of the molecule to edit so we can store the old one
+  // The unit cell and atom positions may change
+  Molecule newMolecule = m_molecule;
+
+  CrystalTools::setVolume(newMolecule, newVolume, options);
+
+  // We will just modify the whole molecule since there may be many changes
+  Molecule::MoleculeChanges changes = Molecule::UnitCell | Molecule::Modified;
+  if (options & CrystalTools::TransformAtoms)
+    changes |= Molecule::Atoms | Molecule::Modified;
+  QString undoText = tr("Scale Cell Volume");
+
+  modifyMolecule(newMolecule, changes, undoText);
+}
+
+void RWMolecule::buildSupercell(unsigned int a, unsigned int b, unsigned int c)
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return;
+
+  // Make a copy of the molecule to edit so we can store the old one
+  // The unit cell and atom positions may change
+  Molecule newMolecule = m_molecule;
+
+  CrystalTools::buildSupercell(newMolecule, a, b, c);
+
+  // We will just modify the whole molecule since there may be many changes
+  Molecule::MoleculeChanges changes = Molecule::UnitCell | Molecule::Modified |
+                                      Molecule::Atoms | Molecule::Added;
+  QString undoText = tr("Build Super Cell");
+
+  modifyMolecule(newMolecule, changes, undoText);
+}
+
+void RWMolecule::niggliReduceCell()
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return;
+
+  // Make a copy of the molecule to edit so we can store the old one
+  // The unit cell and atom positions may change
+  Molecule newMolecule = m_molecule;
+
+  // We need to perform all three of these operations...
+  CrystalTools::niggliReduce(newMolecule, CrystalTools::TransformAtoms);
+  CrystalTools::rotateToStandardOrientation(newMolecule,
+                                            CrystalTools::TransformAtoms);
+  CrystalTools::wrapAtomsToUnitCell(newMolecule);
+
+  // We will just modify the whole molecule since there may be many changes
+  Molecule::MoleculeChanges changes = Molecule::UnitCell | Molecule::Atoms |
+                                      Molecule::Modified;
+  QString undoText = tr("Niggli Reduction");
+
+  modifyMolecule(newMolecule, changes, undoText);
+}
+
+void RWMolecule::rotateCellToStandardOrientation()
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return;
+
+  // Store a copy of the old molecule
+  // The atom positions may move as well.
+  Molecule newMolecule = m_molecule;
+
+  CrystalTools::rotateToStandardOrientation(newMolecule,
+                                            CrystalTools::TransformAtoms);
+
+  // Since most components of the molecule will be modified (atom positions
+  // and the unit cell), we will just modify the whole thing...
+  Molecule::MoleculeChanges changes = Molecule::UnitCell | Molecule::Atoms |
+                                      Molecule::Modified;
+  QString undoText = tr("Rotate to Standard Orientation");
+
+  modifyMolecule(newMolecule, changes, undoText);
+}
+
+bool RWMolecule::reduceCellToPrimitive(double cartTol)
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return false;
+
+  // Make a copy of the molecule to edit so we can store the old one
+  // The unit cell, atom positions, and numbers of atoms may change
+  Molecule newMolecule = m_molecule;
+
+  if (!Core::AvoSpglib::reduceToPrimitive(newMolecule, cartTol))
+    return false;
+
+  // Since most components of the molecule will be modified,
+  // we will just modify the whole thing...
+  Molecule::MoleculeChanges changes = Molecule::UnitCell | Molecule::Atoms |
+                                      Molecule::Added;
+  QString undoText = tr("Reduce to Primitive");
+
+  modifyMolecule(newMolecule, changes, undoText);
+  return true;
+}
+
+bool RWMolecule::conventionalizeCell(double cartTol)
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return false;
+
+  // Make a copy of the molecule to edit so we can store the old one
+  // The unit cell, atom positions, and numbers of atoms may all change
+  Molecule newMolecule = m_molecule;
+
+  if (!Core::AvoSpglib::conventionalizeCell(newMolecule, cartTol))
+    return false;
+
+  Molecule::MoleculeChanges changes = Molecule::UnitCell | Molecule::Atoms |
+                                      Molecule::Added;
+  QString undoText = tr("Conventionalize Cell");
+
+  modifyMolecule(newMolecule, changes, undoText);
+  return true;
+}
+
+bool RWMolecule::symmetrizeCell(double cartTol)
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return false;
+
+  // Make a copy of the molecule to edit so we can store the old one
+  // The unit cell, atom positions, and numbers of atoms may all change
+  Molecule newMolecule = m_molecule;
+
+  if (!Core::AvoSpglib::symmetrize(newMolecule, cartTol))
+    return false;
+
+  Molecule::MoleculeChanges changes = Molecule::UnitCell | Molecule::Atoms |
+                                      Molecule::Added;
+  QString undoText = tr("Symmetrize Cell");
+
+  modifyMolecule(newMolecule, changes, undoText);
+  return true;
+}
+
+bool RWMolecule::fillUnitCell(unsigned short hallNumber, double cartTol)
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return false;
+
+  // Make a copy of the molecule to edit so we can store the old one
+  // The atom positions and numbers of atoms may change
+  Molecule newMolecule = m_molecule;
+
+  Core::SpaceGroups::fillUnitCell(newMolecule, hallNumber, cartTol);
+
+  Molecule::MoleculeChanges changes = Molecule::Added | Molecule::Atoms;
+  QString undoText = tr("Fill Unit Cell");
+
+  modifyMolecule(newMolecule, changes, undoText);
+  return true;
+}
+
+bool RWMolecule::reduceCellToAsymmetricUnit(unsigned short hallNumber,
+                                            double cartTol)
+{
+  // If there is no unit cell, there is nothing to do
+  if (!m_molecule.unitCell())
+    return false;
+
+  // Make a copy of the molecule to edit so we can store the old one
+  // The atom positions and numbers of atoms may change
+  Molecule newMolecule = m_molecule;
+
+  Core::SpaceGroups::reduceToAsymmetricUnit(newMolecule, hallNumber, cartTol);
+
+  Molecule::MoleculeChanges changes = Molecule::Removed | Molecule::Atoms;
+  QString undoText = tr("Reduce Cell to Asymmetric Unit");
+
+  modifyMolecule(newMolecule, changes, undoText);
   return true;
 }
 
