@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>template.png</file>
+        <file>template@2x.png</file>
+    </qresource>
+</RCC>

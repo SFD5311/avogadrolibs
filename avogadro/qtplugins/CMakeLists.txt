@@ -111,6 +111,7 @@ add_subdirectory(playertool)
 add_subdirectory(povray)
 add_subdirectory(spacegroup)
 add_subdirectory(spectra)
+add_subdirectory(template)
 
 if(USE_MOLEQUEUE)
   add_subdirectory(apbs)
