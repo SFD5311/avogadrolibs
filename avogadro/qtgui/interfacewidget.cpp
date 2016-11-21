@@ -24,12 +24,15 @@
 #include <QtWidgets/QFormLayout>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
+#include <QtWidgets/QCheckBox>
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QSpinBox>
 #include <QtWidgets/QDoubleSpinBox>
 #include <QtWidgets/QTextEdit>
+#include <QtWidgets/QTextBrowser>
 
 #include <QtCore/QJsonDocument>
+#include <QtCore/QJsonArray>
 #include <QtCore/QDebug>
 #include <QtCore/QPointer>
 #include <QtCore/QSettings>
@@ -40,10 +43,8 @@ namespace Avogadro {
 InterfaceWidget::InterfaceWidget(QWidget *parent_) :
   QWidget(parent_),
   m_molecule(NULL),
-  m_updatePending(false),
-  m_Interface(QString())
+  m_interfaceScript(QString())
 {
-  connectButtons();
 }
 
 InterfaceWidget::~InterfaceWidget()
@@ -52,9 +53,8 @@ InterfaceWidget::~InterfaceWidget()
 
 void InterfaceWidget::setInterfaceScript(const QString &scriptFile)
 {
-  m_Interface.setScriptFilePath(scriptFile);
+  m_interfaceScript.setScriptFilePath(scriptFile);
   updateOptions();
-  resetWarningDisplay();
 }
 
 void InterfaceWidget::setMolecule(QtGui::Molecule *mol)
@@ -68,48 +68,19 @@ void InterfaceWidget::setMolecule(QtGui::Molecule *mol)
   m_molecule = mol;
 }
 
-void InterfaceWidget::showEvent(QShowEvent *e)
-{
-  QWidget::showEvent(e);
-}
-
 void InterfaceWidget::defaultsClicked()
 {
   setOptionDefaults();
 }
 
-void InterfaceWidget::setWarning(const QString &warn)
+void InterfaceWidget::setWarningText(const QString &warn)
 {
   qWarning() << tr("Script returns warnings:\n") << warn;
-
-  m_ui->warningText->setText(warn);
-  m_ui->warningBox->show();
 }
 
-void InterfaceWidget::toggleWarningText()
+QString InterfaceWidget::warningText() const
 {
-  if (m_ui->warningText->isVisible())
-    hideWarningText();
-  else
-    showWarningText();
-}
-
-void InterfaceWidget::showWarningText()
-{
-  m_ui->warningText->show();
-  m_ui->warningTextButton->setText(tr("Hide &Warnings"));
-}
-
-void InterfaceWidget::hideWarningText()
-{
-  m_ui->warningText->hide();
-  m_ui->warningTextButton->setText(tr("Show &Warnings"));
-}
-
-void InterfaceWidget::resetWarningDisplay()
-{
-  m_ui->warningBox->hide();
-  showWarningText();
+  return QString();
 }
 
 void InterfaceWidget::showError(const QString &err)
@@ -139,198 +110,10 @@ void InterfaceWidget::showError(const QString &err)
   dlg.exec();
 }
 
-void InterfaceWidget::textEditModified()
-{
-  if (QTextEdit *edit = qobject_cast<QTextEdit*>(sender())) {
-    if (edit->document()->isModified()) {
-      if (!m_dirtyTextEdits.contains(edit))
-        m_dirtyTextEdits << edit;
-    }
-    else {
-      m_dirtyTextEdits.removeOne(edit);
-    }
-  }
-}
-
 QString InterfaceWidget::settingsKey(const QString &identifier) const
 {
-  return QString("quantumInput/%1/%2").arg(m_inputGenerator.displayName(),
+  return QString("scriptPlugin/%1/%2").arg(m_interfaceScript.displayName(),
                                            identifier);
-}
-
-void InterfaceWidget::saveSingleFile(const QString &fileName)
-{
-  QSettings settings;
-  QString filePath = settings.value(settingsKey("outputDirectory")).toString();
-  if (filePath.isEmpty())
-    filePath = QDir::homePath();
-  filePath = QFileDialog::getSaveFileName(
-        this, tr("Select output filename"), filePath + "/" + fileName);
-
-  // User cancel:
-  if (filePath.isNull())
-    return;
-
-  settings.setValue(settingsKey("outputDirectory"),
-                    QFileInfo(filePath).absoluteDir().absolutePath());
-
-  QFileInfo info(filePath);
-
-  // Don't check for overwrite: the file save dialog takes care of this.
-  // Attempt to open the file for writing
-  if (!QFile(fileName).open(QFile::WriteOnly)) {
-    showError(tr("%1: File exists and is not writable.").arg(fileName));
-    return;
-  }
-
-  QTextEdit *edit = m_textEdits.value(fileName, NULL);
-  if (!edit) {
-    showError(tr("Internal error: could not find text widget for filename '%1'")
-              .arg(fileName));
-    return;
-  }
-
-  QFile file(filePath);
-  bool success = false;
-  if (file.open(QFile::WriteOnly | QFile::Text)) {
-    if (file.write(edit->toPlainText().toLatin1()) > 0) {
-      success = true;
-    }
-    file.close();
-  }
-
-  if (!success) {
-    QMessageBox::critical(
-          this, tr("Output Error"),
-          tr("Failed to write to file %1.").arg(file.fileName()));
-  }
-}
-
-void InterfaceWidget::saveDirectory()
-{
-  QSettings settings;
-  QString directory = settings.value(settingsKey("outputDirectory")).toString();
-  if (directory.isEmpty())
-    directory = QDir::homePath();
-  directory = QFileDialog::getExistingDirectory(
-        this, tr("Select output directory"), directory);
-
-  // User cancel:
-  if (directory.isNull())
-    return;
-
-  settings.setValue(settingsKey("outputDirectory"), directory);
-  QDir dir(directory);
-
-  QStringList fileNames = m_textEdits.keys();
-
-  // Check for problems:
-  QStringList errors;
-  bool fatalError = false;
-
-  do { // Do/while to break on fatal errors
-    if (!dir.exists()) {
-      errors << tr("%1: Directory does not exist!").arg(dir.absolutePath());
-      fatalError = true;
-      break;
-    }
-
-    if (!dir.isReadable()) {
-      errors << tr("%1: Directory cannot be read!").arg(dir.absolutePath());
-      fatalError = true;
-      break;
-    }
-
-    foreach (const QString &fileName, fileNames) {
-      QFileInfo info(dir.absoluteFilePath(fileName));
-
-      if (info.exists()) {
-        errors << tr("%1: File will be overwritten.")
-                  .arg(info.absoluteFilePath());
-      }
-
-      // Attempt to open the file for writing
-      if (!QFile(info.absoluteFilePath()).open(QFile::WriteOnly)) {
-        errors << tr("%1: File is not writable.").arg(info.absoluteFilePath());
-        fatalError = true;
-        break;
-      }
-    }
-  } while (false); // only run once
-
-  // Handle fatal errors:
-  if (fatalError) {
-    QString formattedError;
-    switch (errors.size()) {
-    case 0:
-      formattedError =
-          tr("The input files cannot be written due to an unknown error.");
-      break;
-    case 1:
-      formattedError =
-          tr("The input files cannot be written:\n\n%1").arg(errors.first());
-      break;
-    default: {
-      // If a fatal error occured, it will be last one in the list. Pop it off
-      // and tell the user that it was the reason we had to stop.
-      QString fatal = errors.last();
-      QStringList tmp(errors);
-      tmp.pop_back();
-      formattedError =
-          tr("The input files cannot be written:\n\n%1\n\nWarnings:\n\n%2")
-          .arg(fatal, tmp.join("\n"));
-      break;
-    }
-    }
-    showError(formattedError);
-    return;
-  }
-
-  // Non-fatal errors:
-  if (!errors.isEmpty()) {
-    QString formattedError = tr("Warning:\n\n%1\n\nWould you like to continue?")
-        .arg(errors.join("\n"));
-
-    QMessageBox::StandardButton reply =
-        QMessageBox::warning(this, tr("Write input files"), formattedError,
-                             QMessageBox::Yes | QMessageBox::No,
-                             QMessageBox::No);
-
-    if (reply != QMessageBox::Yes)
-      return;
-  }
-
-  foreach (const QString &fileName, fileNames) {
-    QTextEdit *edit = m_textEdits.value(fileName);
-    QFile file(dir.absoluteFilePath(fileName));
-    bool success = false;
-    if (file.open(QFile::WriteOnly | QFile::Text)) {
-      if (file.write(edit->toPlainText().toLatin1()) > 0) {
-        success = true;
-      }
-      file.close();
-    }
-
-    if (!success) {
-      QMessageBox::critical(
-            this, tr("Output Error"),
-            tr("Failed to write to file %1.").arg(file.fileName()));
-    }
-  }
-}
-
-void InterfaceWidget::connectButtons()
-{
-  connect(m_ui->debugCheckBox, SIGNAL(toggled(bool)),
-          &m_inputGenerator, SLOT(setDebug(bool)));
-  connect(m_ui->debugCheckBox, SIGNAL(toggled(bool)),
-          SLOT(updatePreviewText()));
-  connect(m_ui->defaultsButton, SIGNAL(clicked()), SLOT(defaultsClicked()));
-  connect(m_ui->generateButton, SIGNAL(clicked()), SLOT(generateClicked()));
-  connect(m_ui->computeButton, SIGNAL(clicked()), SLOT(computeClicked()));
-  connect(m_ui->closeButton, SIGNAL(clicked()), SIGNAL(closeClicked()));
-  connect(m_ui->warningTextButton, SIGNAL(clicked()),
-          SLOT(toggleWarningText()));
 }
 
 QString InterfaceWidget::lookupOptionType(const QString &name) const
@@ -366,13 +149,6 @@ QString InterfaceWidget::lookupOptionType(const QString &name) const
 
 void InterfaceWidget::updateOptions()
 {
-  m_options = m_inputGenerator.options();
-
-  if (m_inputGenerator.hasErrors()) {
-    showError(m_inputGenerator.errorList().join("\n\n"));
-    m_inputGenerator.clearErrors();
-  }
-
   // Create the widgets, etc for the gui
   buildOptionGui();
   setOptionDefaults();
@@ -382,9 +158,9 @@ void InterfaceWidget::buildOptionGui()
 {
   // Clear old widgets from the layout
   m_widgets.clear();
-  delete m_ui->optionsWidget->layout();
+  delete layout(); // kill my layout
   QFormLayout *form = new QFormLayout;
-  m_ui->optionsWidget->setLayout(form);
+  setLayout(form);
 
   if (!m_options.contains("userOptions") ||
       !m_options["userOptions"].isObject()) {
@@ -476,7 +252,7 @@ void InterfaceWidget::addOptionRow(const QString &label,
   if (!widget)
     return;
 
-  QFormLayout *form = qobject_cast<QFormLayout*>(m_ui->optionsWidget->layout());
+  QFormLayout *form = qobject_cast<QFormLayout*>(this->layout());
   if (!form) {
     qWarning() << "Cannot add option" << label
                << "to GUI -- layout is not a form.";
@@ -645,7 +421,7 @@ void InterfaceWidget::setOptionDefaults()
     QJsonObject obj = val.toObject();
     if (obj.contains("default"))
       setOption(label, obj["default"]);
-    else if (m_inputGenerator.debug())
+    else if (m_interfaceScript.debug())
       qWarning() << tr("Default value missing for option '%1'.").arg(label);
   }
 }
@@ -868,5 +644,33 @@ void InterfaceWidget::applyOptions(const QJsonObject &opts)
   foreach (const QString &label, opts.keys())
     setOption(label, opts[label]);
 }
+
+QString InterfaceWidget::generateJobTitle() const
+{
+  QString calculation;
+  bool haveCalculation(optionString("Calculation Type", calculation));
+
+  QString theory;
+  bool haveTheory(optionString("Theory", theory));
+
+  QString basis;
+  bool haveBasis(optionString("Basis", basis));
+
+  // Merge theory/basis into theory
+  if (haveBasis) {
+    if (haveTheory)
+      theory += "/";
+    theory += basis;
+    theory.replace(QRegExp("\\s+"), "");
+    haveTheory = true;
+  }
+
+  QString formula(m_molecule ? QString::fromStdString(m_molecule->formula())
+                             : tr("[no molecule]"));
+
+  return QString("%1%2%3").arg(formula)
+      .arg(haveCalculation ? " | " + calculation : QString())
+      .arg(haveTheory      ? " | " + theory      : QString());
+  }
 
 } // namespace Avogadro

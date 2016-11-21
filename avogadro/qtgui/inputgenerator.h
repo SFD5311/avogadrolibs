@@ -40,9 +40,7 @@ class Molecule;
 namespace QtGui {
 class GenericHighlighter;
 class PythonScript;
-}
 
-namespace MoleQueue {
 /**
  * @class InputGenerator inputgenerator.h <avogadro/molequeue/inputgenerator.h>
  * @brief The InputGenerator class provides an interface to input generator
@@ -630,7 +628,7 @@ inline bool InputGenerator::isValid() const
   return !hasErrors();
 }
 
-} // namespace MoleQueue
+} // namespace QtGui
 } // namespace Avogadro
 
 #endif // AVOGADRO_MOLEQUEUE_INPUTGENERATOR_H

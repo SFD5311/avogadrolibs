@@ -31,7 +31,7 @@
 #include <QtCore/QFile>
 
 namespace Avogadro {
-namespace MoleQueue {
+namespace QtGui {
 
 using QtGui::PythonScript;
 using QtGui::GenericHighlighter;
@@ -707,5 +707,5 @@ bool InputGenerator::parsePattern(const QJsonValue &json,
   return true;
 }
 
-} // namespace MoleQueue
+} // namespace QtGui
 } // namespace Avogadro
