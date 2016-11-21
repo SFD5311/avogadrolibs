@@ -14,11 +14,12 @@
 
 ******************************************************************************/
 
-#ifndef AVOGADRO_MOLEQUEUE_INPUTGENERATOR_H
-#define AVOGADRO_MOLEQUEUE_INPUTGENERATOR_H
+#ifndef AVOGADRO_QTGUI_INPUTGENERATOR_H
+#define AVOGADRO_QTGUI_INPUTGENERATOR_H
 
 #include <QtCore/QObject>
-#include "avogadromolequeueexport.h"
+
+#include "avogadroqtguiexport.h"
 
 #include <avogadro/core/avogadrocore.h>
 
@@ -448,7 +449,7 @@ $$coords:[coordSpec]$$
  * qDebug() stream from within avogadro. The script is free to handle the
  * debug flag as the author wishes.
  */
-class AVOGADROMOLEQUEUE_EXPORT InputGenerator : public QObject
+class AVOGADROQTGUI_EXPORT InputGenerator : public QObject
 {
   Q_OBJECT
 public:
