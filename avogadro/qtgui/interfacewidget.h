@@ -23,7 +23,7 @@
 #include <QtCore/QMap>
 #include <QtCore/QJsonObject>
 
-#include "inputgenerator.h"
+#include "interfacescript.h"
 
 class QJsonValue;
 class QTextEdit;
@@ -32,14 +32,13 @@ class QWidget;
 namespace Avogadro {
 namespace QtGui {
 class Molecule;
-}
 
 /**
  * @class InterfaceWidget interfacewidget.h
  * <avogadro/qtgui/interfacewidget.h>
  * @brief The InterfaceWidget class provides a user interface for
  * running external scripts
- * @sa InputGenerator InputGeneratorDialog
+ * @sa InterfaceScript
  *
  * The InterfaceWidget creates a GUI to represent the options given by an
  * script, turning JSON from the script into a form and passing the results
@@ -71,7 +70,7 @@ public:
   /**
    * Access to the underlying input generator object.
    */
-  const QtGui::InputGenerator &interfaceScript() const { return m_interfaceScript; }
+  const QtGui::InterfaceScript &interfaceScript() const { return m_interfaceScript; }
 
 private slots:
   /**
@@ -81,7 +80,7 @@ private slots:
 
   /**
    * Show the user an warning. These are messages returned by the input
-   * generator script.
+   *  script.
    */
   void setWarningText(const QString &warn);
 
@@ -180,9 +179,10 @@ private:
   QMap<QString, QWidget*> m_widgets;
   QMap<QString, QTextEdit*> m_textEdits;
 
-  QtGui::InputGenerator m_interfaceScript;
+  QtGui::InterfaceScript m_interfaceScript;
 };
 
+} // namespace QtGui
 } // namespace Avogadro
 
 #endif // AVOGADRO_QTGUI_INTERFACEWIDGET_H

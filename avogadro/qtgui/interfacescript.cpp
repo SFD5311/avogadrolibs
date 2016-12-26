@@ -14,7 +14,7 @@
 
 ******************************************************************************/
 
-#include "inputgenerator.h"
+#include "interfacescript.h"
 
 #include <avogadro/core/coordinateblockgenerator.h>
 #include <avogadro/core/molecule.h>
@@ -36,30 +36,30 @@ namespace QtGui {
 using QtGui::PythonScript;
 using QtGui::GenericHighlighter;
 
-InputGenerator::InputGenerator(const QString &scriptFilePath_, QObject *parent_)
+InterfaceScript::InterfaceScript(const QString &scriptFilePath_, QObject *parent_)
   : QObject(parent_),
     m_interpreter(new PythonScript(scriptFilePath_, this)),
     m_moleculeExtension("Unknown")
 {
 }
 
-InputGenerator::InputGenerator(QObject *parent_)
+InterfaceScript::InterfaceScript(QObject *parent_)
   : QObject(parent_),
     m_interpreter(new PythonScript(this)),
     m_moleculeExtension("Unknown")
 {
 }
 
-InputGenerator::~InputGenerator()
+InterfaceScript::~InterfaceScript()
 {
 }
 
-bool InputGenerator::debug() const
+bool InterfaceScript::debug() const
 {
   return m_interpreter->debug();
 }
 
-QJsonObject InputGenerator::options() const
+QJsonObject InterfaceScript::options() const
 {
   m_errors.clear();
   if (m_options.isEmpty()) {
@@ -105,7 +105,7 @@ QJsonObject InputGenerator::options() const
   return m_options;
 }
 
-QString InputGenerator::displayName() const
+QString InterfaceScript::displayName() const
 {
   m_errors.clear();
   if (m_displayName.isEmpty()) {
@@ -118,18 +118,18 @@ QString InputGenerator::displayName() const
   return m_displayName;
 }
 
-QString InputGenerator::scriptFilePath() const
+QString InterfaceScript::scriptFilePath() const
 {
   return m_interpreter->scriptFilePath();
 }
 
-void InputGenerator::setScriptFilePath(const QString &scriptFile)
+void InterfaceScript::setScriptFilePath(const QString &scriptFile)
 {
   reset();
   m_interpreter->setScriptFilePath(scriptFile);
 }
 
-void InputGenerator::reset()
+void InterfaceScript::reset()
 {
   m_interpreter->setDefaultPythonInterpretor();
   m_interpreter->setScriptFilePath(QString());
@@ -145,7 +145,7 @@ void InputGenerator::reset()
   m_highlightStyles.clear();
 }
 
-bool InputGenerator::generateInput(const QJsonObject &options_,
+bool InterfaceScript::generateInput(const QJsonObject &options_,
                                    const Core::Molecule &mol)
 {
   m_errors.clear();
@@ -312,39 +312,39 @@ bool InputGenerator::generateInput(const QJsonObject &options_,
   return result;
 }
 
-int InputGenerator::numberOfInputFiles() const
+int InterfaceScript::numberOfInputFiles() const
 {
   return m_filenames.size();
 }
 
-QStringList InputGenerator::fileNames() const
+QStringList InterfaceScript::fileNames() const
 {
   return m_filenames;
 }
 
-QString InputGenerator::mainFileName() const
+QString InterfaceScript::mainFileName() const
 {
   return m_mainFileName;
 }
 
-QString InputGenerator::fileContents(const QString &fileName) const
+QString InterfaceScript::fileContents(const QString &fileName) const
 {
   return m_files.value(fileName, QString());
 }
 
 GenericHighlighter *
-InputGenerator::createFileHighlighter(const QString &fileName) const
+InterfaceScript::createFileHighlighter(const QString &fileName) const
 {
   GenericHighlighter *toClone(m_fileHighlighters.value(fileName, NULL));
   return toClone ? new GenericHighlighter(*toClone) : toClone;
 }
 
-void InputGenerator::setDebug(bool d)
+void InterfaceScript::setDebug(bool d)
 {
   m_interpreter->setDebug(d);
 }
 
-bool InputGenerator::parseJson(const QByteArray &json, QJsonDocument &doc) const
+bool InterfaceScript::parseJson(const QByteArray &json, QJsonDocument &doc) const
 {
   QJsonParseError error;
   doc = QJsonDocument::fromJson(json, &error);
@@ -357,7 +357,7 @@ bool InputGenerator::parseJson(const QByteArray &json, QJsonDocument &doc) const
   return true;
 }
 
-bool InputGenerator::insertMolecule(QJsonObject &json,
+bool InterfaceScript::insertMolecule(QJsonObject &json,
                                     const Core::Molecule &mol) const
 {
   // Update the cached options if the format is not set
@@ -410,7 +410,7 @@ bool InputGenerator::insertMolecule(QJsonObject &json,
   return true;
 }
 
-QString InputGenerator::generateCoordinateBlock(const QString &spec,
+QString InterfaceScript::generateCoordinateBlock(const QString &spec,
                                                 const Core::Molecule &mol) const
 {
   Core::CoordinateBlockGenerator gen;
@@ -422,7 +422,7 @@ QString InputGenerator::generateCoordinateBlock(const QString &spec,
   return QString::fromStdString(tmp);
 }
 
-void InputGenerator::replaceKeywords(QString &str,
+void InterfaceScript::replaceKeywords(QString &str,
                                      const Core::Molecule &mol) const
 {
   // Simple keywords:
@@ -444,7 +444,7 @@ void InputGenerator::replaceKeywords(QString &str,
   } // end for coordinate block
 }
 
-bool InputGenerator::parseHighlightStyles(const QJsonArray &json) const
+bool InterfaceScript::parseHighlightStyles(const QJsonArray &json) const
 {
   bool result(true);
   foreach (QJsonValue styleVal, json) {
@@ -487,7 +487,7 @@ bool InputGenerator::parseHighlightStyles(const QJsonArray &json) const
     QJsonArray rulesArray(styleObj.value("rules").toArray());
 
     GenericHighlighter *highlighter(new GenericHighlighter(
-                                      const_cast<InputGenerator*>(this)));
+                                      const_cast<InterfaceScript*>(this)));
     if (!parseRules(rulesArray, *highlighter)) {
       qDebug() << "Error parsing style" << styleName << endl
                << QString(QJsonDocument(styleObj).toJson());
@@ -501,7 +501,7 @@ bool InputGenerator::parseHighlightStyles(const QJsonArray &json) const
   return result;
 }
 
-bool InputGenerator::parseRules(const QJsonArray &json,
+bool InterfaceScript::parseRules(const QJsonArray &json,
                                 GenericHighlighter &highligher) const
 {
   bool result(true);
@@ -566,7 +566,7 @@ bool InputGenerator::parseRules(const QJsonArray &json,
   return result;
 }
 
-bool InputGenerator::parseFormat(const QJsonObject &json,
+bool InterfaceScript::parseFormat(const QJsonObject &json,
                                  QTextCharFormat &format) const
 {
   // Check for presets first:
@@ -672,7 +672,7 @@ bool InputGenerator::parseFormat(const QJsonObject &json,
   return true;
 }
 
-bool InputGenerator::parsePattern(const QJsonValue &json,
+bool InterfaceScript::parsePattern(const QJsonValue &json,
                                   QRegExp &pattern) const
 {
   if (!json.isObject())

@@ -14,8 +14,8 @@
 
 ******************************************************************************/
 
-#ifndef AVOGADRO_QTGUI_INPUTGENERATOR_H
-#define AVOGADRO_QTGUI_INPUTGENERATOR_H
+#ifndef AVOGADRO_QTGUI_INTERFACESCRIPT_H
+#define AVOGADRO_QTGUI_INTERFACESCRIPT_H
 
 #include <QtCore/QObject>
 
@@ -42,10 +42,9 @@ class GenericHighlighter;
 class PythonScript;
 
 /**
- * @class InputGenerator inputgenerator.h <avogadro/molequeue/inputgenerator.h>
- * @brief The InputGenerator class provides an interface to input generator
- * scripts.
- * @sa InputGeneratorWidget
+ * @class InterfaceScript interfacescript.h <avogadro/molequeue/interfacescript.h>
+ * @brief The Interface class provides an interface to external scripts
+ * @sa InterfaceWidget
  *
  * The QuantumInput extension provides a scriptable method for users to add
  * custom input generators to Avogadro. By writing an executable that implements
@@ -414,7 +413,7 @@ class PythonScript;
  * ================================
  *
  * The generation of molecular geometry descriptions may be skipped in the
- * script and deferred to the InputGenerator class by use of a special keyword.
+ * script and deferred to the InterfaceScript class by use of a special keyword.
  * The "contents" string may contain a keyword of the form
 ~~~
 $$coords:[coordSpec]$$
@@ -447,7 +446,7 @@ $$coords:[coordSpec]$$
  * qDebug() stream from within avogadro. The script is free to handle the
  * debug flag as the author wishes.
  */
-class AVOGADROQTGUI_EXPORT InputGenerator : public QObject
+class AVOGADROQTGUI_EXPORT InterfaceScript : public QObject
 {
   Q_OBJECT
 public:
@@ -455,10 +454,10 @@ public:
    * Constructor
    * @param scriptFilePath_ Absolute path to generator script.
    */
-  explicit InputGenerator(const QString &scriptFilePath_,
+  explicit InterfaceScript(const QString &scriptFilePath_,
                           QObject *parent_ = NULL);
-  explicit InputGenerator(QObject *parent_ = NULL);
-  ~InputGenerator();
+  explicit InterfaceScript(QObject *parent_ = NULL);
+  ~InterfaceScript();
 
   /**
    * @return True if debugging is enabled.
@@ -622,7 +621,7 @@ private:
 
 };
 
-inline bool InputGenerator::isValid() const
+inline bool InterfaceScript::isValid() const
 {
   displayName();
   return !hasErrors();
@@ -631,4 +630,4 @@ inline bool InputGenerator::isValid() const
 } // namespace QtGui
 } // namespace Avogadro
 
-#endif // AVOGADRO_MOLEQUEUE_INPUTGENERATOR_H
+#endif // AVOGADRO_MOLEQUEUE_INTERFACESCRIPT_H

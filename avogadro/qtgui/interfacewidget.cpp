@@ -39,6 +39,7 @@
 #include <QtCore/QTimer>
 
 namespace Avogadro {
+namespace QtGui {
 
 InterfaceWidget::InterfaceWidget(QWidget *parent_) :
   QWidget(parent_),
@@ -673,4 +674,5 @@ QString InterfaceWidget::generateJobTitle() const
       .arg(haveTheory      ? " | " + theory      : QString());
   }
 
+} // namespace QtGui
 } // namespace Avogadro
