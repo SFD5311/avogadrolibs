@@ -21,9 +21,12 @@
 
 #include <avogadro/io/fileformat.h>
 #include <avogadro/io/fileformatmanager.h>
+#include <avogadro/io/fileformatmanager.h>
 
 #include <avogadro/qtgui/generichighlighter.h>
 #include <avogadro/qtgui/pythonscript.h>
+#include <avogadro/qtgui/molecule.h>
+#include <avogadro/qtgui/rwmolecule.h>
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>
@@ -39,14 +42,14 @@ using QtGui::GenericHighlighter;
 InterfaceScript::InterfaceScript(const QString &scriptFilePath_, QObject *parent_)
   : QObject(parent_),
     m_interpreter(new PythonScript(scriptFilePath_, this)),
-    m_moleculeExtension("Unknown")
+    m_moleculeExtension("cjson")
 {
 }
 
 InterfaceScript::InterfaceScript(QObject *parent_)
   : QObject(parent_),
     m_interpreter(new PythonScript(this)),
-    m_moleculeExtension("Unknown")
+    m_moleculeExtension("cjson")
 {
 }
 
@@ -88,7 +91,7 @@ QJsonObject InterfaceScript::options() const
     m_options = doc.object();
 
     // Check if the generator needs to read a molecule.
-    m_moleculeExtension = "None";
+    m_moleculeExtension = "cjson";
     if (m_options.contains("inputMoleculeFormat") &&
         m_options["inputMoleculeFormat"].isString()) {
       m_moleculeExtension = m_options["inputMoleculeFormat"].toString();
@@ -156,6 +159,73 @@ void InterfaceScript::reset()
   m_files.clear();
   m_fileHighlighters.clear();
   m_highlightStyles.clear();
+}
+
+bool InterfaceScript::runWorkflow(const QJsonObject &options_,
+                                  Core::Molecule &mol)
+{
+  m_errors.clear();
+  m_warnings.clear();
+  m_filenames.clear();
+  qDeleteAll(m_fileHighlighters.values());
+  m_fileHighlighters.clear();
+  m_mainFileName.clear();
+  m_files.clear();
+
+  // Add the molecule file to the options
+  QJsonObject allOptions(options_);
+  if (!insertMolecule(allOptions, mol))
+    return false;
+
+  QByteArray json(m_interpreter->execute(QStringList() << "--run-workflow",
+                                         QJsonDocument(allOptions).toJson()));
+
+  if (m_interpreter->hasErrors()) {
+    m_errors << m_interpreter->errorList();
+    return false;
+  }
+
+  QJsonDocument doc;
+  if (!parseJson(json, doc))
+    return false;
+
+  // Update cache
+  bool result = true;
+  if (doc.isObject()) {
+    QJsonObject obj = doc.object();
+
+    // Check for any warnings:
+    if (obj.contains("warnings")) {
+      if (obj["warnings"].isArray()) {
+        foreach (const QJsonValue &warning, obj["warnings"].toArray()) {
+          if (warning.isString())
+            m_warnings << warning.toString();
+          else
+            m_errors << tr("Non-string warning returned.");
+        }
+      }
+      else {
+        m_errors << tr("'warnings' member is not an array.");
+      }
+    }
+
+    // TODO: add undo / redo and smart updates
+    Io::FileFormatManager &formats = Io::FileFormatManager::instance();
+    QScopedPointer<Io::FileFormat> format(formats.newFormatFromFileExtension(
+                                            "cjson"));
+    // convert the "cjson" field to a string
+    QJsonObject cjsonObj = obj["cjson"].toObject();
+    QJsonDocument doc(cjsonObj);
+    QString strCJSON(doc.toJson(QJsonDocument::Compact));
+    if (!strCJSON.isEmpty()) {
+      result = format->readString(strCJSON.toStdString(), mol);
+      // TODO: need to indicate changes to the QtGui Molecule
+      Molecule::MoleculeChanges changes =
+       (Molecule::Atoms | Molecule::Bonds | Molecule::Added | Molecule::Removed);
+      //      guiMol.undoMolecule()->modifyMolecule(newMol, changes, "Run Script");
+    }
+  }
+  return result;
 }
 
 bool InterfaceScript::generateInput(const QJsonObject &options_,

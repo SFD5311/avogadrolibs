@@ -312,7 +312,6 @@ QWidget *InterfaceWidget::createStringListWidget(const QJsonObject &obj)
   QJsonArray valueArray = obj["values"].toArray();
 
   QComboBox *combo = new QComboBox(this);
-
   for (QJsonArray::const_iterator vit = valueArray.constBegin(),
        vitEnd = valueArray.constEnd(); vit != vitEnd; ++vit) {
     if ((*vit).isString())
@@ -321,6 +320,11 @@ QWidget *InterfaceWidget::createStringListWidget(const QJsonObject &obj)
       qDebug() << "Cannot convert value to string for stringList:" << *vit;
   }
   connect(combo, SIGNAL(currentIndexChanged(int)), SLOT(updatePreviewText()));
+
+  if (obj.contains("toolTip") &&
+      obj.value("toolTip").isString()) {
+    combo->setToolTip(obj["toolTip"].toString());
+  }
 
   return combo;
 }
@@ -669,6 +673,9 @@ QJsonObject InterfaceWidget::collectOptions() const
       ret.insert(label, value);
     }
     else if (QSpinBox *spinBox = qobject_cast<QSpinBox*>(widget)) {
+      ret.insert(label, spinBox->value());
+    }
+    else if (QDoubleSpinBox *spinBox = qobject_cast<QDoubleSpinBox*>(widget)) {
       ret.insert(label, spinBox->value());
     }
     else if (QCheckBox *checkBox = qobject_cast<QCheckBox*>(widget)) {

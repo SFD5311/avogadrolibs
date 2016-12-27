@@ -66,11 +66,27 @@ QList<QAction *> Workflow::actions() const
   return m_actions;
 }
 
-QStringList Workflow::menuPath(QAction *) const
+QStringList Workflow::menuPath(QAction *action) const
 {
+  QString scriptFileName = action->data().toString();
   QStringList path;
-  // TODO: Need to query the scripts for these
-  path << tr("&Extensions") << tr("Scripts");
+
+  // if we're passed the "Set Python" action
+  if (scriptFileName.isEmpty()) {
+    path << tr("&Extensions") << tr("Scripts");
+    return path;
+  }
+
+  // otherwise, we have a script name, so ask it
+  InterfaceScript gen(scriptFileName);
+  path = gen.menuPath().split('|');
+  if (gen.hasErrors()) {
+    path << tr("&Extensions") << tr("Scripts");
+    qWarning() << "Workflow::queryProgramName: Unable to retrieve program "
+                  "name for" << scriptFileName << "."
+               << gen.errorList().join("\n\n");
+    return path;
+  }
   return path;
 }
 
@@ -130,6 +146,9 @@ void Workflow::menuActivated()
   } else {
     delete m_currentDialog->layout();
   }
+  QString title;
+  queryProgramName(scriptFileName, title);
+  m_currentDialog->setWindowTitle(title);
 
   QVBoxLayout *vbox = new QVBoxLayout();
   vbox->addWidget(widget);
@@ -149,9 +168,12 @@ void Workflow::run()
   if (m_currentDialog)
     m_currentDialog->accept();
 
-  qDebug() << " Run! ";
   if (m_currentInterface) {
-    qDebug() << m_currentInterface->collectOptions();
+    QJsonObject options = m_currentInterface->collectOptions();
+    QString scriptFilePath = m_currentInterface->interfaceScript().scriptFilePath();
+    InterfaceScript gen(scriptFilePath);
+    gen.runWorkflow(options, *m_molecule);
+    // collect errors
   }
 }
 

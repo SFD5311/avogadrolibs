@@ -521,6 +521,18 @@ public:
    * molecule. See the class documentation for details on the @p options_
    * object format.
    *
+   * @return true on success and false on failure.
+   * @note If an error occurs, the error string will be set. Call hasErrors()
+   * to check for success, and errorString() or errorList() to get a
+   * user-friendly description of the error.
+   */
+  bool runWorkflow(const QJsonObject &options_, Core::Molecule &mol);
+
+  /**
+   * Request input files from the script using the supplied options object and
+   * molecule. See the class documentation for details on the @p options_
+   * object format.
+   *
    * If the files are generated successfully, use the functions
    * numberOfInputFiles(), fileNames(), and fileContents() to retrieve them.
    *

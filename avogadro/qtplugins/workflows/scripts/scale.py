@@ -3,7 +3,7 @@
 
   This source file is part of the Avogadro project.
 
-  Copyright 2013 Kitware, Inc.
+  Copyright 2016 Kitware, Inc.
 
   This source code is released under the New BSD License, (the "License").
 
@@ -21,100 +21,77 @@ import json
 import sys
 
 # Some globals:
-debug = False
+debug = True
+
 
 def getOptions():
-  userOptions = {}
+    userOptions = {}
 
-  userOptions['Input File'] = {}
-  userOptions['Input File']['type'] = 'string'
-  userOptions['Input File']['default'] = ''
+    userOptions['X Scale'] = {}
+    userOptions['X Scale']['type'] = 'float'
+    userOptions['X Scale']['default'] = 1.0
+    userOptions['X Scale']['precision'] = 3
+    userOptions['X Scale']['toolTip'] = 'Multiplier for X coordinates'
 
-  userOptions['Calculation'] = {}
-  userOptions['Calculation']['type'] = 'string'
-  userOptions['Calculation']['default'] = 'mg-auto'
+    userOptions['Y Scale'] = {}
+    userOptions['Y Scale']['type'] = 'float'
+    userOptions['Y Scale']['default'] = 1.0
+    userOptions['Y Scale']['precision'] = 3
+    userOptions['Y Scale']['toolTip'] = 'Multiplier for Y coordinates'
 
-  opts = {'userOptions' : userOptions}
-  opts['allowCustomBaseName'] = True
+    userOptions['Z Scale'] = {}
+    userOptions['Z Scale']['type'] = 'float'
+    userOptions['Z Scale']['default'] = 1.0
+    userOptions['Z Scale']['precision'] = 3
+    userOptions['Z Scale']['toolTip'] = 'Multiplier for Z coordinates'
 
-  return opts
+    opts = {'userOptions': userOptions}
 
-def generateInputFile(opts, settings):
-  # Extract options:
-  input_file = opts['Input File']
-  calculation = opts['Calculation']
+    return opts
 
-  output = ''
 
-  output += 'read\n'
-  output += '   mol pqr %s\n'%input_file
-  output += 'end\n\n'
+def scale(opts, mol):
+    xScale = float(opts['X Scale'])
+    yScale = float(opts['Y Scale'])
+    zScale = float(opts['Z Scale'])
 
-  output += 'elec\n'
-  output += '    %s\n'%calculation
-  output += '    dime 97 97 97\n'
-  output += '    chgm spl0\n'
-  output += '    fglen 150 115 160\n'
-  output += '    cglen 156 121 162\n'
-  output += '    cgcent mol 1\n'
-  output += '    fgcent mol 1\n'
-  output += '    mol 1\n'
-  output += '    npbe\n'
-  output += '    bcfl sdh\n'
-  output += '    ion 1 0.150 2.0\n'
-  output += '    ion -1 0.150 2.0\n'
-  output += '    pdie 2.0\n'
-  output += '    sdie 78.54\n'
-  output += '    srfm mol\n'
-  output += '    srad 1.4\n'
-  output += '    sdens 10.0\n'
-  output += '    temp 298.15\n'
-  output += '    calcenergy total\n'
-  output += '    calcforce no\n'
-  output += '    write pot dx pot\n' # write potential output
-  output += 'end\n\n'
+    coords = mol['atoms']['coords']['3d']
+    for i in range(0, len(coords), 3):
+        coords[i] = coords[i] * xScale
+        coords[i+1] = coords[i+1] * yScale
+        coords[i+2] = coords[i+2] * zScale
 
-  output += 'quit\n'
+    return mol
 
-  return output
 
-def generateInput():
-  # Read options from stdin
-  stdinStr = sys.stdin.read()
+def runWorkflow():
+    # Read options from stdin
+    stdinStr = sys.stdin.read()
 
-  # Parse the JSON strings
-  opts = json.loads(stdinStr)
+    # Parse the JSON strings
+    opts = json.loads(stdinStr)
 
-  # Generate the input file
-  inp = generateInputFile(opts['options'], opts['settings'])
-
-  # Prepare the result
-  result = {}
-  # Input file text -- will appear in the same order in the GUI as they are
-  # listed in the array:
-  files = []
-  files.append({'filename': 'apbs.in', 'contents': inp})
-  if debug:
-    files.append({'filename': 'debug_info', 'contents': stdinStr})
-  result['files'] = files
-  # Specify the main input file. This will be used by MoleQueue to determine
-  # the value of the $$inputFileName$$ and $$inputFileBaseName$$ keywords.
-  result['mainFile'] = 'apbs.in'
-  return result
+    # Prepare the result
+    result = {}
+    result['cjson'] = scale(opts, opts['cjson'])
+    return result
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser('Generate an APBS input file.')
-  parser.add_argument('--debug', action='store_true')
-  parser.add_argument('--print-options', action='store_true')
-  parser.add_argument('--generate-input', action='store_true')
-  parser.add_argument('--display-name', action='store_true')
-  args = vars(parser.parse_args())
+    parser = argparse.ArgumentParser('Scale molecular coordinates.')
+    parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--print-options', action='store_true')
+    parser.add_argument('--run-workflow', action='store_true')
+    parser.add_argument('--display-name', action='store_true')
+    parser.add_argument('--menu-path', action='store_true')
+    args = vars(parser.parse_args())
 
-  debug = args['debug']
+    debug = args['debug']
 
-  if args['display_name']:
-    print("APBS")
-  if args['print_options']:
-    print(json.dumps(getOptions()))
-  elif args['generate_input']:
-    print(json.dumps(generateInput()))
+    if args['display_name']:
+        print("Scale Coordinates...")
+    if args['menu_path']:
+        print("&Extensions")
+    if args['print_options']:
+        print(json.dumps(getOptions()))
+    elif args['run_workflow']:
+        print(json.dumps(runWorkflow()))
