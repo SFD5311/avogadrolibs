@@ -118,6 +118,19 @@ QString InterfaceScript::displayName() const
   return m_displayName;
 }
 
+QString InterfaceScript::menuPath() const
+{
+  m_errors.clear();
+  if (m_menuPath.isEmpty()) {
+    m_menuPath = QString(m_interpreter->execute(
+                          QStringList() << "--menu-path"));
+    m_errors << m_interpreter->errorList();
+    m_menuPath = m_menuPath.trimmed();
+  }
+
+  return m_menuPath;
+}
+
 QString InterfaceScript::scriptFilePath() const
 {
   return m_interpreter->scriptFilePath();

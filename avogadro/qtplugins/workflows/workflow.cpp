@@ -48,6 +48,8 @@ using Avogadro::QtGui::InterfaceWidget;
 Workflow::Workflow(QObject *parent_) :
   ExtensionPlugin(parent_),
   m_molecule(NULL),
+  m_currentDialog(NULL),
+  m_currentInterface(NULL),
   m_outputFormat(NULL)
 {
   refreshScripts();
@@ -115,15 +117,42 @@ void Workflow::menuActivated()
 
   QString scriptFileName = theSender->data().toString();
   QWidget *theParent = qobject_cast<QWidget*>(parent());
-  InterfaceWidget *dlg = m_dialogs.value(scriptFileName, NULL);
+  InterfaceWidget *widget = m_dialogs.value(scriptFileName, NULL);
 
-  if (!dlg) {
-    dlg = new InterfaceWidget(theParent);
-    m_dialogs.insert(scriptFileName, dlg);
+  if (!widget) {
+    widget = new InterfaceWidget(scriptFileName, theParent);
+    m_dialogs.insert(scriptFileName, widget);
   }
-  dlg->setMolecule(m_molecule);
-  dlg->show();
-  dlg->raise();
+  widget->setMolecule(m_molecule);
+
+  if (!m_currentDialog) {
+    m_currentDialog = new QDialog(theParent);
+  } else {
+    delete m_currentDialog->layout();
+  }
+
+  QVBoxLayout *vbox = new QVBoxLayout();
+  vbox->addWidget(widget);
+  m_currentInterface = widget; // remember this when we get the run() signal
+  QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
+    | QDialogButtonBox::Cancel);
+
+  connect(buttonBox, SIGNAL(accepted()), this, SLOT(run()));
+  connect(buttonBox, SIGNAL(rejected()), m_currentDialog, SLOT(reject()));
+  vbox->addWidget(buttonBox);
+  m_currentDialog->setLayout(vbox);
+  m_currentDialog->exec();
+}
+
+void Workflow::run()
+{
+  if (m_currentDialog)
+    m_currentDialog->accept();
+
+  qDebug() << " Run! ";
+  if (m_currentInterface) {
+    qDebug() << m_currentInterface->collectOptions();
+  }
 }
 
 void Workflow::configurePython()

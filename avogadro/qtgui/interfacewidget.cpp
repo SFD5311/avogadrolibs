@@ -41,11 +41,13 @@
 namespace Avogadro {
 namespace QtGui {
 
-InterfaceWidget::InterfaceWidget(QWidget *parent_) :
+InterfaceWidget::InterfaceWidget(const QString &scriptFilePath,
+                                 QWidget *parent_) :
   QWidget(parent_),
   m_molecule(NULL),
   m_interfaceScript(QString())
 {
+  this->setInterfaceScript(scriptFilePath);
 }
 
 InterfaceWidget::~InterfaceWidget()
@@ -55,6 +57,7 @@ InterfaceWidget::~InterfaceWidget()
 void InterfaceWidget::setInterfaceScript(const QString &scriptFile)
 {
   m_interfaceScript.setScriptFilePath(scriptFile);
+  m_options = m_interfaceScript.options();
   updateOptions();
 }
 
@@ -247,7 +250,7 @@ void InterfaceWidget::buildOptionGui()
 }
 
 void InterfaceWidget::addOptionRow(const QString &label,
-                                        const QJsonValue &option)
+                                   const QJsonValue &option)
 {
   QWidget *widget = createOptionWidget(option);
   if (!widget)
@@ -324,18 +327,26 @@ QWidget *InterfaceWidget::createStringListWidget(const QJsonObject &obj)
 
 QWidget *InterfaceWidget::createStringWidget(const QJsonObject &obj)
 {
-  Q_UNUSED(obj);
   QLineEdit *edit = new QLineEdit(this);
-  connect(edit, SIGNAL(textChanged(QString)), SLOT(updatePreviewText()));
+//  connect(edit, SIGNAL(textChanged(QString)), SLOT(updatePreviewText()));
+  if (obj.contains("toolTip") &&
+      obj.value("toolTip").isString()) {
+    edit->setToolTip(obj["toolTip"].toString());
+  }
+
   return edit;
 }
 
 QWidget *InterfaceWidget::createFilePathWidget(const QJsonObject &obj)
 {
-  Q_UNUSED(obj);
   QtGui::FileBrowseWidget *fileBrowse = new QtGui::FileBrowseWidget(this);
   connect(fileBrowse, SIGNAL(fileNameChanged(QString)),
           SLOT(updatePreviewText()));
+
+  if (obj.contains("toolTip") &&
+      obj.value("toolTip").isString()) {
+    fileBrowse->setToolTip(obj["toolTip"].toString());
+  }
   return fileBrowse;
 }
 
@@ -357,6 +368,10 @@ QWidget *InterfaceWidget::createIntegerWidget(const QJsonObject &obj)
   if (obj.contains("suffix") &&
       obj.value("suffix").isString()) {
     spin->setSuffix(obj["suffix"].toString());
+  }
+  if (obj.contains("toolTip") &&
+      obj.value("toolTip").isString()) {
+    spin->setToolTip(obj["toolTip"].toString());
   }
   connect(spin, SIGNAL(valueChanged(int)), SLOT(updatePreviewText()));
   return spin;
@@ -385,15 +400,23 @@ QWidget *InterfaceWidget::createFloatWidget(const QJsonObject &obj)
       obj.value("suffix").isString()) {
     spin->setSuffix(obj["suffix"].toString());
   }
+  if (obj.contains("toolTip") &&
+      obj.value("toolTip").isString()) {
+    spin->setToolTip(obj["toolTip"].toString());
+  }
   connect(spin, SIGNAL(valueChanged(double)), SLOT(updatePreviewText()));
   return spin;
 }
 
 QWidget *InterfaceWidget::createBooleanWidget(const QJsonObject &obj)
 {
-  Q_UNUSED(obj);
   QCheckBox *checkBox = new QCheckBox(this);
   connect(checkBox, SIGNAL(toggled(bool)), SLOT(updatePreviewText()));
+
+  if (obj.contains("toolTip") &&
+      obj.value("toolTip").isString()) {
+    checkBox->setToolTip(obj["toolTip"].toString());
+  }
   return checkBox;
 }
 
@@ -440,6 +463,8 @@ void InterfaceWidget::setOption(const QString &name,
     return setFilePathOption(name, defaultValue);
   else if (type == "integer")
     return setIntegerOption(name, defaultValue);
+  else if (type == "float")
+    return setFloatOption(name, defaultValue);
   else if (type == "boolean")
     return setBooleanOption(name, defaultValue);
 
@@ -530,7 +555,7 @@ void InterfaceWidget::setFilePathOption(const QString &name,
 }
 
 void InterfaceWidget::setIntegerOption(const QString &name,
-                                            const QJsonValue &value)
+                                       const QJsonValue &value)
 {
   QSpinBox *spin = qobject_cast<QSpinBox*>(m_widgets.value(name, NULL));
   if (!spin) {
@@ -550,6 +575,28 @@ void InterfaceWidget::setIntegerOption(const QString &name,
 
   int intVal = static_cast<int>(value.toDouble() + 0.5);
   spin->setValue(intVal);
+}
+
+void InterfaceWidget::setFloatOption(const QString &name,
+                                     const QJsonValue &value)
+{
+  QDoubleSpinBox *spin = qobject_cast<QDoubleSpinBox*>(m_widgets.value(name, NULL));
+  if (!spin) {
+    qWarning() << tr("Error setting default for option '%1'. "
+                     "Bad widget type.")
+                  .arg(name);
+    return;
+  }
+
+  if (!value.isDouble()) {
+    qWarning() << tr("Error setting default for option '%1'. "
+                     "Bad default value:")
+                  .arg(name)
+               << value;
+    return;
+  }
+
+  spin->setValue(value.toDouble());
 }
 
 void InterfaceWidget::setBooleanOption(const QString &name,

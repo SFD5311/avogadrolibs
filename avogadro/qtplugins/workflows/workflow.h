@@ -66,6 +66,8 @@ public slots:
    */
   void refreshScripts();
 
+  void run();
+
   bool readMolecule(QtGui::Molecule &mol);
 
 private slots:
@@ -82,6 +84,8 @@ private:
   QtGui::Molecule *m_molecule;
   // keyed on script file path
   QMultiMap<QString, QtGui::InterfaceWidget*> m_dialogs;
+  QDialog *m_currentDialog;
+  QtGui::InterfaceWidget *m_currentInterface;
 
   // maps program name --> script file path
   QMultiMap<QString, QString> m_workflowScripts;

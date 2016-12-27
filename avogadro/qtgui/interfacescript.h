@@ -491,6 +491,16 @@ public:
   QString displayName() const;
 
   /**
+   * Query the script for the menu path (<tt>--menu-path</tt>).
+   * @note The results will be cached the first time this function is called
+   * and reused in subsequent calls.
+   * @note If an error occurs, the error string will be set. Call hasErrors()
+   * to check for success, and errorString() or errorList() to get a
+   * user-friendly description of the error.
+   */
+  QString menuPath() const;
+
+  /**
    * @return The path to the generator file.
    */
   QString scriptFilePath() const;
@@ -608,6 +618,7 @@ private:
   // File extension of requested molecule format
   mutable QString m_moleculeExtension;
   mutable QString m_displayName;
+  mutable QString m_menuPath;
   mutable QJsonObject m_options;
   mutable QStringList m_warnings;
   mutable QStringList m_errors;
