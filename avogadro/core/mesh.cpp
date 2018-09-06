@@ -88,6 +88,9 @@ bool Mesh::addVertices(const Core::Array<Vector3f>& values)
   if (values.size() % 3 == 0) {
     for (unsigned int i = 0; i < values.size(); ++i)
       m_vertices.push_back(values.at(i));
+      //reset volume and surfaceArea so they can be recalculated
+      m_volume = 0;
+      m_surfaceArea = 0;
     return true;
   } else {
     return false;
@@ -175,8 +178,84 @@ bool Mesh::clear()
   m_vertices.clear();
   m_normals.clear();
   m_colors.clear();
+  m_surfaceArea = 0;
+  m_volume = 0;
   return true;
 }
+
+double Mesh::surfaceArea(){
+  if(m_surfaceArea != 0){
+    //If we've already calculated this, don't do it again
+    return m_surfaceArea;
+  }
+
+  else{
+    for(int i = 0; i < m_vertices.size() / 3; i++){
+      //For each face, find the three vertices
+      Vector3f vertexOne = m_vertices[i * 3];
+      Vector3f vertexTwo = m_vertices[i * 3 + 1];
+      Vector3f vertexThree = m_vertices[i * 3 + 2];
+
+      //Make vectors connecting the vertices
+      Vector3f oneTwo = vertexTwo - vertexOne;
+      Vector3f twoThree = vertexThree - vertexTwo;
+      //The cross product will be the normal vector to the plane containing
+      //the vertices
+      Vector3f normal = oneTwo.cross(twoThree);
+      //And its magnitude is equal to the area of the parallelogram formed by
+      //Them, so the triangle is half of that
+      m_surfaceArea += (normal.norm() / 2);
+    }
+  }
+  return m_surfaceArea;
+}
+
+double Mesh::volume(){
+
+  if(m_volume != 0){
+    //If we've already calculated this, don't do it again
+    return m_volume;
+  }
+
+  else{
+    for(int i = 0; i < m_vertices.size() / 3; i++){
+      //For each face, find the three vertices
+      Vector3f vertexOne = m_vertices[i * 3];
+      Vector3f vertexTwo = m_vertices[i * 3 + 1];
+      Vector3f vertexThree = m_vertices[i * 3 + 2];
+      //These three places plus the origin make a tetrahedron
+      //Find the volume of this tetrahedron
+
+      double unsignedVolume = tetrahedronVolume(vertexOne, vertexTwo, vertexThree);
+      double signedVolume;
+      //Make vectors connecting the vertices
+      Vector3f oneTwo = vertexTwo - vertexOne;
+      Vector3f twoThree = vertexThree - vertexTwo;
+      //The cross product will be the normal vector to the plane containing
+      //the vertices
+      Vector3f normal = oneTwo.cross(twoThree);
+      //If the normal vector points in the direction of the origin
+      //Then sign this volume negatively
+      if(normal.dot(vertexOne) < 0){
+        signedVolume = - unsignedVolume;
+      }
+      else{
+        signedVolume = unsignedVolume;
+      }
+      //Increment total volume by signed volume
+      m_volume += signedVolume;
+    }
+  }
+  return m_volume;
+
+}
+
+//calculates the volume of a tetrahedron, assuming one point is the origin
+double Mesh::tetrahedronVolume(Vector3f a, Vector3f b, Vector3f c){
+  return( - (a(2) * b(1) * c(0) + a(1) * b(2) * c(0) + a(2) * b(0) * c(1) -
+    a(0) * b(2) * c(1) - a(1) * b(0) * c(2) + a(0) * b(1) * c(2)) / 6);
+}
+
 
 Mesh& Mesh::operator=(const Mesh& other)
 {

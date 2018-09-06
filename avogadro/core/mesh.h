@@ -207,6 +207,18 @@ public:
   bool clear();
 
   /**
+  * Calculates (if necessary) and returns the volume of the mesh
+  */
+
+  double volume();
+
+  /*
+  ** Calculates (if necessary) and returns the surface area of the mesh
+  */
+
+  double surfaceArea();
+
+  /**
    * Overloaded operator.
    */
   Mesh& operator=(const Mesh& other);
@@ -237,7 +249,12 @@ private:
   float m_isoValue;
   unsigned int m_other; // Unique id of the other mesh if this is part of a pair
   unsigned int m_cube;  // Unique id of the cube this mesh was generated from
+  double m_surfaceArea;
+  double m_volume;
   Mutex* m_lock;
+
+  //Calculates the volume of a tetrahedron
+  double tetrahedronVolume(Vector3f a, Vector3f b, Vector3f c);
 };
 
 } // End namespace Core
