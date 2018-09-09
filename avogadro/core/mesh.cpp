@@ -14,7 +14,6 @@
   limitations under the License.
 
 ******************************************************************************/
-
 #include "mesh.h"
 
 #include "mutex.h"
@@ -88,9 +87,6 @@ bool Mesh::addVertices(const Core::Array<Vector3f>& values)
   if (values.size() % 3 == 0) {
     for (unsigned int i = 0; i < values.size(); ++i)
       m_vertices.push_back(values.at(i));
-      //reset volume and surfaceArea so they can be recalculated
-      m_volume = 0;
-      m_surfaceArea = 0;
     return true;
   } else {
     return false;
@@ -178,8 +174,8 @@ bool Mesh::clear()
   m_vertices.clear();
   m_normals.clear();
   m_colors.clear();
-  m_surfaceArea = 0;
   m_volume = 0;
+  m_surfaceArea = 0;
   return true;
 }
 
@@ -204,16 +200,16 @@ double Mesh::surfaceArea(){
       Vector3f normal = oneTwo.cross(twoThree);
       //And its magnitude is equal to the area of the parallelogram formed by
       //Them, so the triangle is half of that
-      m_surfaceArea += (normal.norm() / 2);
+      m_surfaceArea += (normal.norm() / 4);
     }
+    return m_surfaceArea;
   }
-  return m_surfaceArea;
 }
 
 double Mesh::volume(){
 
   if(m_volume != 0){
-    //If we've already calculated this, don't do it again
+//    If we've already calculated this, don't do it again
     return m_volume;
   }
 
@@ -228,26 +224,28 @@ double Mesh::volume(){
 
       double unsignedVolume = tetrahedronVolume(vertexOne, vertexTwo, vertexThree);
       double signedVolume;
-      //Make vectors connecting the vertices
-      Vector3f oneTwo = vertexTwo - vertexOne;
-      Vector3f twoThree = vertexThree - vertexTwo;
-      //The cross product will be the normal vector to the plane containing
-      //the vertices
-      Vector3f normal = oneTwo.cross(twoThree);
+
+      //Average the normals of the vectors to get the normal of the face
+      Vector3f faceNormal =
+      (m_normals[i * 3] + m_normals[i * 3 + 1] + m_normals[i * 3 + 2]) / 3;
+
       //If the normal vector points in the direction of the origin
       //Then sign this volume negatively
-      if(normal.dot(vertexOne) < 0){
+      if(faceNormal.dot(vertexOne) < 0){
         signedVolume = - unsignedVolume;
-      }
+      }//end if
       else{
         signedVolume = unsignedVolume;
-      }
+      }//end else
       //Increment total volume by signed volume
       m_volume += signedVolume;
+    }//end for
+    //volume should always be positive
+    if(m_volume < 0){
+      m_volume *= -1;
     }
+    return m_volume;
   }
-  return m_volume;
-
 }
 
 //calculates the volume of a tetrahedron, assuming one point is the origin
