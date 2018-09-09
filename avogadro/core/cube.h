@@ -51,6 +51,7 @@ public:
     ESP,
     ElectronDensity,
     MO,
+    EDT,
     FromFile,
     None
   };
@@ -230,6 +231,26 @@ public:
    * Provides locking.
    */
   Mutex* lock() const { return m_lock; }
+
+/*
+
+  //Populates empty cube with values representing the union of this
+  //And otherCube
+  void addition(Cube* otherCube, Cube* emptyCube);
+
+  //Populates empty cube with values representing the intersection of this
+  //And otherCube
+  void intersection(Cube* otherCube, Cube* emptyCube);
+
+  //Populates empty cube with values representing the average of this
+  //And otherCube
+  void average(Cube* otherCube, Cube* emptyCube);
+
+  //Populates empty cube with values representing the difference of this
+  //And otherCube
+  void difference(Cube* otherCube, Cube* emptyCube);
+
+*/
 
 protected:
   std::vector<double> m_data;

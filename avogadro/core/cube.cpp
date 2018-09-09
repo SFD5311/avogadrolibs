@@ -298,6 +298,170 @@ bool Cube::setValue(const Vector3i& pos, double value)
 {
   return setValue(pos(0), pos(1), pos(2), value);
 }
+/*
+void Cube::addition(Cube* otherCube, Cube* emptyCube){
+  //cubes are incompatible, fail silently
+  if(this->Type != otherCube->Type || this->min() != otherCube->min() ||
+      this->max() != otherCube->max() || this->spacing() != otherCube->spacing()){
+        return;
+      }
+  else{
+    emptyCube->setCubeType(this->Type);
+    emptyCube->setLimits(this->min(), this->max(), this->spacing());
 
+    if(this->Type == EDT){
+      Vector3i dimensions = this->dimensions();
+
+      for(int i = 0; i < dimensions(0); i++){
+        for(int j = 0; j < dimensions(1); j++){
+          for(int k = 0; k < dimensions(2); k++){
+            //In one solid or the other, goes in solid
+            if(this->value(i, j, k) == 2 || otherCube->value(i, j, k) == 2){
+              emptyCube->setValue(i, j, k, 2);
+            }
+            //On one surface and not in the other solid, goes on surface
+            else if((this->value(i, j, k) == 0 || otherCube->value(i, j, k) == 0){
+              emptyCube->setValue(i, j, k, 0);
+            }
+            else{//Not in either solid or on either surface
+              emptyCube->setValue(i, j, k, 1);
+            }
+          }//end for k
+        }//end for j
+      }//end for i
+
+    }
+
+    else{//Not EDT
+      for(int i = 0; i < dimensions(0); i++){
+        for(int j = 0; j < dimensions(1); j++){
+          for(int k = 0; k < dimensions(2); k++){
+            emptyCube->setValue(i, j, k, this->value(i, j, k) + otherCube->value(i, j, k));
+          }
+        }
+      }
+    }
+  }
+}
+
+void Cube::difference(Cube* otherCube, Cube* emptyCube){
+  //cubes are incompatible, fail silently
+  if(this->Type != otherCube->Type || this->min() != otherCube->min() ||
+      this->max() != otherCube->max() || this->spacing() != otherCube->spacing()){
+        return;
+      }
+  else{
+    emptyCube->setCubeType(this->Type);
+    emptyCube->setLimits(this->min(), this->max(), this->spacing());
+
+    if(this->Type == EDT){
+      Vector3i dimensions = this->dimensions();
+
+      for(int i = 0; i < dimensions(0); i++){
+        for(int j = 0; j < dimensions(1); j++){
+          for(int k = 0; k < dimensions(2); k++){
+            //In this and not otherCube, goes in solid
+            if(this->value(i, j, k) == 2 && otherCube->value(i, j, k) == 1){
+              emptyCube->setValue(i, j, k, 2);
+            }
+            //On either surface, goes on surface
+            else if((this->value(i, j, k) == 0 || otherCube->value(i, j, k) == 0){
+              emptyCube->setValue(i, j, k, 0);
+            }
+            else{//Not in this solid or on either surface
+              emptyCube->setValue(i, j, k, 1);
+            }
+          }//end for k
+        }//end for j
+      }//end for i
+
+    }
+
+    else{//Not EDT
+      for(int i = 0; i < dimensions(0); i++){
+        for(int j = 0; j < dimensions(1); j++){
+          for(int k = 0; k < dimensions(2); k++){
+            //can this be negative?
+            emptyCube->setValue(i, j, k, this->value(i, j, k) - otherCube->value(i, j, k));
+          }
+        }
+      }
+    }
+  }
+}
+
+void Cube::intersection(Cube* otherCube, Cube* emptyCube){
+  //cubes are incompatible, fail silently
+  if(this->Type != otherCube->Type || this->min() != otherCube->min() ||
+      this->max() != otherCube->max() || this->spacing() != otherCube->spacing()){
+        return;
+      }
+  else{
+    emptyCube->setCubeType(this->Type);
+    emptyCube->setLimits(this->min(), this->max(), this->spacing());
+
+    if(this->Type == EDT){
+      Vector3i dimensions = this->dimensions();
+
+      for(int i = 0; i < dimensions(0); i++){
+        for(int j = 0; j < dimensions(1); j++){
+          for(int k = 0; k < dimensions(2); k++){
+            //In both solids, goes on surface
+            if(this->value(i, j, k) == 2 && otherCube->value(i, j, k) == 2){
+              emptyCube->setValue(i, j, k, 2);
+            }
+            //On one surface and in the other solid, goes on surface
+            else if((this->value(i, j, k) == 0 && otherCube->value(i, j, k) == 2)
+             || (otherCube->value(i, j, k) == 0 && this->value(i, j, k) == 2)){
+              emptyCube->setValue(i, j, k, 0);
+            }
+            else{//Otherwise
+              emptyCube->setValue(i, j, k, 1);
+            }
+          }//end for k
+        }//end for j
+      }//end for i
+
+    }
+
+    else{//Not EDT
+      for(int i = 0; i < dimensions(0); i++){
+        for(int j = 0; j < dimensions(1); j++){
+          for(int k = 0; k < dimensions(2); k++){
+//            find out about the meaning of this, max maybe?
+//            emptyCube->setValue(i, j, k, this->value(i, j, k) + otherCube->value(i, j, k));
+          }
+        }
+      }
+    }
+  }
+}
+
+void Cube::addition(Cube* otherCube, Cube* emptyCube){
+  //cubes are incompatible, fail silently
+  if(this->Type != otherCube->Type || this->min() != otherCube->min() ||
+      this->max() != otherCube->max() || this->spacing() != otherCube->spacing()){
+        return;
+      }
+  else{
+    emptyCube->setCubeType(this->Type);
+    emptyCube->setLimits(this->min(), this->max(), this->spacing());
+
+    if(this->Type == EDT){
+      //Not sure if this is meaningful for an EDT
+    }
+
+    else{//Not EDT
+      for(int i = 0; i < dimensions(0); i++){
+        for(int j = 0; j < dimensions(1); j++){
+          for(int k = 0; k < dimensions(2); k++){
+            emptyCube->setValue(i, j, k, this->value((i, j, k) + otherCube->value(i, j, k)) / 2);
+          }
+        }
+      }
+    }
+  }
+}
+*/
 } // End Core namespace
 } // End Avogadro namespace
