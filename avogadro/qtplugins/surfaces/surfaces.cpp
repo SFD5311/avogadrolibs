@@ -32,6 +32,7 @@ namespace {
 
 #include <avogadro/core/cube.h>
 #include <avogadro/core/mesh.h>
+
 #include <avogadro/qtgui/meshgenerator.h>
 #include <avogadro/qtgui/molecule.h>
 #include <avogadro/qtopengl/activeobjects.h>
@@ -372,6 +373,9 @@ void Surfaces::meshFinished()
       m_molecule->emitChanged(QtGui::Molecule::Added);
       movieFrame();
     } else {
+      qDebug() << "number of vertices" << m_mesh1->numVertices();
+      qDebug() << "Sean's volume" << m_mesh1->volume();
+      qDebug() << "Sean's surface area" << m_mesh1->surfaceArea();
       m_dialog->reenableCalculateButton();
       m_molecule->emitChanged(QtGui::Molecule::Added);
     }

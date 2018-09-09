@@ -8,8 +8,8 @@
 
 #include <Eigen/Dense>
 
-#include <avogadro/core/cube.h>
 #include <avogadro/core/elementdata.h>
+#include <avogadro/core/cube.h>
 #include <avogadro/core/molecule.h>
 #include <avogadro/qtgui/molecule.h>
 
@@ -86,6 +86,22 @@ Core::Cube* EDTSurface::EDTCube(QtGui::Molecule* mol, Core::Cube* cube,
     this->buildSurface();
   }
 
+  int atomicNumber = (int) m_mol->atomicNumber(0);
+
+  double radius = element_VDW[atomicNumber];
+  double volume = 4 * 3.14 * radius * radius * radius / 3;
+  double surfaceArea = 4 * 3.14 * radius * radius;
+
+  qDebug() << "volume " << volume;
+
+  double scaleFactor = (double) data->scaleFactor;
+
+  double voxelVolume = (double) numberOfInnerVoxels / (scaleFactor * scaleFactor * scaleFactor);
+
+  qDebug() << "voxelVolume" << voxelVolume;
+
+  qDebug() << "surface area" << surfaceArea;
+
   return m_cube;
 }
 
@@ -145,11 +161,14 @@ void EDTSurface::boundBox()
 
   int numberOfAtoms = m_mol->atomCount();
   Array<Vector3> positions = m_mol->atomPositions3d();
+//  double atomicRadius;
 
   data->pMin << 100000, 100000, 100000;
   data->pMax << -100000, -100000, -100000;
 
   for (int i = 0; i < numberOfAtoms; i++) {
+//    atomicRadius = element_VDW[m_mol->atomicNumber(i)];
+
     if (positions[i](X) < data->pMin(X))
       data->pMin(X) = positions[i](X);
     if (positions[i](Y) < data->pMin(Y))
@@ -186,9 +205,6 @@ void EDTSurface::initPara()
     }
   }
 
-  double fMargin = 2.5;
-
-  Vector3 fMargins(fMargin, fMargin, fMargin);
   Vector3 probeRadii(data->probeRadius, data->probeRadius, data->probeRadius);
 
   // calculate the boundBox (get the pMin and pMax)
@@ -196,8 +212,13 @@ void EDTSurface::initPara()
 
   // inflate the pMin and pMax by a margin plus the probeRadius (0 if VWS)
 
-  data->pMin -= (probeRadii + fMargins);
-  data->pMax += (probeRadii + fMargins);
+  Vector3 threes(3, 3, 3);
+
+  data->pMin -= threes;
+  data->pMax += threes;
+
+  data->pMin -= (probeRadii);
+  data->pMax += (probeRadii);
 
   data->pTran = -data->pMin;
 
